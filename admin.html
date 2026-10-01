@@ -276,7 +276,7 @@
 
     <div class="form-group">
       <label>Item / Station Name</label>
-      <input type="text" id="modalTitle" placeholder="e.g. Grandma's Bedtime Stories or BBC World" required>
+      <input type="text" id="modalTitle" placeholder="e.g. Bedtime Stories or BBC News" required>
     </div>
 
     <div style="display:flex; gap:10px;">
@@ -307,7 +307,7 @@
     <div class="form-group" id="group-fileid" style="display:none;">
       <label>Google Drive File ID</label>
       <input type="text" id="modalFileId" placeholder="e.g. 1a2B3c4D5e6F7g...">
-      <p style="font-size:0.72rem; color:var(--sub); margin-top:4px;">Direct Google Drive ID. Streamed via the Apps Script data-URI proxy.</p>
+      <p style="font-size:0.72rem; color:var(--sub); margin-top:4px;">Streamed through Apps Script data-URI proxy without CORS limits.</p>
     </div>
 
     <div style="display:flex; justify-content:space-between; gap:10px; margin-top:20px;">
@@ -321,7 +321,6 @@
 </div>
 
 <div class="admin-container">
-
   <!-- Passcode Auth Gate -->
   <div id="authGate" class="panel" style="max-width: 400px; margin: 60px auto; text-align: center;">
     <div class="brand-icon" style="margin: 0 auto 14px;"><i class="fa-solid fa-people-roof"></i></div>
@@ -336,7 +335,6 @@
 
   <!-- Studio Dashboard -->
   <div id="adminDashboard" style="display:none;">
-    
     <header class="topbar">
       <div class="station-brand">
         <div class="brand-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
@@ -363,13 +361,12 @@
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="tab-btn active" id="tabBtnSchedule" onclick="switchTab('scheduleTab', this)"><i class="fa-solid fa-calendar-days"></i> Master Broadcast Schedule</button>
+      <button class="tab-btn active" id="tabBtnSchedule" onclick="switchTab('scheduleTab', this)"><i class="fa-solid fa-calendar-days"></i> Master Schedule</button>
       <button class="tab-btn" id="tabBtnUpload" onclick="switchTab('uploadTab', this)"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Drive Audio</button>
-      <button class="tab-btn" id="tabBtnMic" onclick="switchTab('micTab', this)"><i class="fa-solid fa-microphone"></i> Live Announcements</button>
       <button class="tab-btn" id="tabBtnLive" onclick="switchTab('liveTab', this)"><i class="fa-solid fa-headphones"></i> Active Listeners</button>
     </nav>
 
-    <!-- TAB 1: MASTER BROADCAST SCHEDULE -->
+    <!-- TAB 1: MASTER SCHEDULE -->
     <section id="scheduleTab" class="tab-content active">
       <div class="panel">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
@@ -388,7 +385,7 @@
       </div>
     </section>
 
-    <!-- TAB 2: UPLOAD DRIVE AUDIO DIRECTLY -->
+    <!-- TAB 2: UPLOAD DRIVE AUDIO -->
     <section id="uploadTab" class="tab-content">
       <div class="panel" style="max-width: 650px; margin: 0 auto;">
         <h2 style="font-size:1.15rem; margin-bottom:6px;"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--accent); margin-right:8px;"></i>Upload to Google Drive & Radio</h2>
@@ -410,20 +407,7 @@
       </div>
     </section>
 
-    <!-- TAB 3: LIVE FAMILY ANNOUNCEMENTS -->
-    <section id="micTab" class="tab-content">
-      <div class="panel">
-        <h2 style="font-size:1.15rem;"><i class="fa-solid fa-microphone-lines" style="color:var(--accent); margin-right:8px;"></i>Live Family Voice Broadcast</h2>
-        <p style="font-size:0.8rem; color:var(--sub); margin-bottom:14px;">Record a voice announcement to broadcast immediately to all family radios.</p>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <button id="micBtn" class="btn btn-primary" onclick="toggleMicRecording()"><i class="fa-solid fa-microphone"></i> Start Voice Announcement</button>
-          <span id="micStatus" style="font-size:0.85rem; color:var(--sub); font-weight:600;">Mic Idle</span>
-          <button id="pushMicBtn" class="btn btn-cyan" style="display:none;" onclick="pushRecordedMicAudio()"><i class="fa-solid fa-bolt"></i> Push Recording Now</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 4: LISTENERS -->
+    <!-- TAB 3: LISTENERS -->
     <section id="liveTab" class="tab-content">
       <div class="panel">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -447,14 +431,13 @@
         </div>
       </div>
     </section>
-
   </div>
 </div>
 
 <audio id="testPlayer" style="display:none;"></audio>
 
 <script>
-  const BACKEND_URL = "https://script.google.com/macros/s/AKfycbwb3NX6gCrVxCr3r40YSSs7H25JvLaU_zXsZLOUuxxu2g4tAJy5gPdolXZU4jHso4dzJA/exec";
+  const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxhTVS9jeu9L4UH_NCw992CQrSrlkag_oCgpe7C2GfX4V5NWRwdc-vSSYj2aOj3JLaf/exec";
   const STORAGE_KEY = "bfr_integrated_schedule_v3";
 
   let adminPasscode = "";
@@ -462,11 +445,6 @@
   let cachedListeners = [];
   let serverTimeOffset = 0;
   let activeSearchQuery = "";
-
-  let mediaRecorder = null;
-  let micAudioChunks = [];
-  let micBase64Data = null;
-  let micRecordStartTime = 0;
   let hlsTest = null;
   const audioCache = {};
 
@@ -499,7 +477,6 @@
   function handleGlobalSearch(query) {
     activeSearchQuery = String(query || "").toLowerCase().trim();
     renderScheduleGrid();
-    renderListeners(cachedListeners);
   }
 
   function clearGlobalSearch() {
@@ -790,7 +767,7 @@
         body: JSON.stringify({ action: "saveSchedule", channels: schedule })
       });
       const data = await res.json();
-      if (data.status === "success") {
+      if (data.success) {
         showToast(`Google Sheet Updated (${data.count} items)`);
       } else {
         showToast("Sync error: " + (data.message || "Unknown error"));
@@ -800,7 +777,6 @@
     }
   }
 
-  // Auto-sync files currently sitting inside the Drive folder
   async function triggerDriveAutoSync() {
     showToast("Scanning Google Drive folder...");
     try {
@@ -817,7 +793,6 @@
     }
   }
 
-  // DIRECT DRIVE UPLOADER TAB
   async function handleDirectDriveUpload() {
     const fileInput = document.getElementById("adminUploadFile");
     const titleInput = document.getElementById("adminUploadTitle");
@@ -866,79 +841,6 @@
     };
     reader.readAsDataURL(file);
   }
-
-  // LIVE MIC ANNOUNCEMENTS
-  async function toggleMicRecording() {
-    const btn = document.getElementById('micBtn');
-    const status = document.getElementById('micStatus');
-    const pushBtn = document.getElementById('pushMicBtn');
-
-    if (!mediaRecorder || mediaRecorder.state === "inactive") {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        micAudioChunks = [];
-        micRecordStartTime = Date.now();
-
-        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) micAudioChunks.push(e.data); };
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(micAudioChunks, { type: 'audio/webm' });
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            micBase64Data = reader.result.split(',')[1];
-            status.innerText = "Announcement ready to broadcast!";
-            pushBtn.style.display = "inline-flex";
-          };
-          reader.readAsDataURL(blob);
-        };
-
-        mediaRecorder.start();
-        btn.innerHTML = `<i class="fa-solid fa-stop"></i> Stop Announcement`;
-        status.innerHTML = `<span style="color:var(--accent);">● Recording message...</span>`;
-        pushBtn.style.display = "none";
-      } catch(e) {
-        showToast("Microphone permission denied");
-      }
-    } else if (mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-      btn.innerHTML = `<i class="fa-solid fa-microphone"></i> Record Again`;
-      status.innerText = "Processing audio...";
-    }
-  }
-
-  async function pushRecordedMicAudio() {
-    if (!micBase64Data) return;
-    showToast("Publishing urgent family announcement...");
-    setTimeout(() => {
-      showToast("Announcement registered and broadcasted!");
-      document.getElementById('pushMicBtn').style.display = 'none';
-      document.getElementById('micStatus').innerText = "Mic Idle";
-    }, 1500);
-  }
-
-  function renderListeners(listeners) {
-    const tbody = document.getElementById('listenersTableBody');
-    if (!tbody) return;
-    const q = activeSearchQuery;
-
-    const filtered = (listeners || []).filter(l => {
-      return !q || String(l.listenerId || "").toLowerCase().includes(q) || String(l.username || "").toLowerCase().includes(q);
-    });
-
-    if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--sub);">No listeners online.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = filtered.map(l => `
-      <tr>
-        <td><code>${escapeHtml(l.listenerId)}</code></td>
-        <td><strong>${escapeHtml(l.username)}</strong></td>
-        <td><span style="color:${l.status === 'Listening Live' ? 'var(--green)' : 'var(--sub)'}; font-weight:600;">● ${escapeHtml(l.status)}</span></td>
-        <td style="color:var(--sub); font-size:0.8rem;">${escapeHtml(l.lastSeen)}</td>
-      </tr>
-    `).join('');
-  }
 </script>
-
 </body>
 </html>
