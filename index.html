@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>The Big Family Radio • Autonomous Scheduler</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --primary: #ff4760;
+      --primary-hover: #ff758c;
+      --cyan: #00d2ff;
+      --green: #00e676;
+      --bg: #090d16;
+      --card-bg: rgba(18, 24, 36, 0.94);
+      --speaker-rim: #2d3748;
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --border: rgba(255, 255, 255, 0.1);
+      --header-h: 56px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100vw;
+      width: 100dvw;
+      height: 100vh;
+      height: 100dvh;
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      width: 100%;
+      height: var(--header-h);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(14px);
+      z-index: 40;
+      border-bottom: 1px solid var(--border);
+      background: rgba(9, 13, 22, 0.95);
+    }
+    .brand-group { display: flex; align-items: center; gap: 10px; }
+    .brand-title { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+    .brand-title i { color: var(--primary); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .badge-live { background: rgba(0, 230, 118, 0.15); border: 1px solid rgba(0, 230, 118, 0.4); color: var(--green); }
+    .badge-listeners { background: rgba(0, 210, 255, 0.15); border: 1px solid rgba(0, 210, 255, 0.4); color: var(--cyan); }
+    .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+    /* STEREO RADIO STAGE CABINET */
+    #stage {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #1a2234 0%, #090d16 100%);
+      padding: clamp(8px, 2vh, 20px);
+      overflow: hidden;
+    }
+
+    #radio-chassis {
+      display: grid;
+      grid-template-columns: minmax(170px, 1fr) minmax(280px, 1.4fr) minmax(170px, 1fr);
+      gap: clamp(10px, 2vw, 20px);
+      width: 100%;
+      max-width: 1080px;
+      height: min(540px, 94vh);
+      background: linear-gradient(180deg, #1f283d 0%, #101522 100%);
+      border: 4px solid #2d3748;
+      border-radius: 32px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+      padding: clamp(12px, 2vh, 24px);
+      align-items: center;
+    }
+
+    @media (max-width: 820px) {
+      #radio-chassis {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        max-height: 94%;
+        overflow-y: auto;
+      }
+      #center-console {
+        grid-column: span 2;
+        order: -1;
+      }
+    }
+
+    /* STEREO SPEAKER UNITS */
+    .speaker-unit {
+      background: radial-gradient(circle, #0e131f 40%, #060910 100%);
+      border: 5px solid var(--speaker-rim);
+      border-radius: 26px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 10px;
+      box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.95);
+      position: relative;
+    }
+
+    .speaker-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: #94a3b8;
+    }
+
+    .cone-housing {
+      position: relative;
+      width: clamp(130px, 16vw, 190px);
+      height: clamp(130px, 16vw, 190px);
+      border-radius: 50%;
+      background: radial-gradient(circle, #1a2233 15%, #070a12 85%);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 3px solid #334155;
+    }
+
+    .speaker-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    .dust-cap {
+      width: 32%;
+      height: 32%;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--primary) 0%, #881337 80%);
+      box-shadow: 0 0 15px rgba(255, 71, 96, 0.5);
+      z-index: 2;
+      transition: transform 0.05s ease-out;
+    }
+
+    .telemetry-card {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      font-family: monospace;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+    }
+
+    .db-meter-track {
+      width: 100%;
+      height: 6px;
+      background: #1e293b;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .db-meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #10b981 0%, #f59e0b 70%, #ef4444 100%);
+      transition: width 0.08s ease-out;
+    }
+
+    /* CENTER CONSOLE & DSP TUNER */
+    #center-console {
+      background: rgba(10, 15, 26, 0.9);
+      border: 2px solid #334155;
+      border-radius: 22px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(12px, 2vh, 20px);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+      text-align: center;
+    }
+
+    .tuner-glass {
+      background: #000;
+      border: 1px solid rgba(0, 210, 255, 0.25);
+      border-radius: 14px;
+      padding: 10px;
+      box-shadow: inset 0 0 15px rgba(0, 210, 255, 0.1);
+    }
+
+    #station-title {
+      font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+      font-weight: 800;
+      margin: 4px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--cyan);
+    }
+
+    #station-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .sound-modes-container {
+      margin: 8px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .modes-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+
+    .modes-pills {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .mode-btn {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: #e2e8f0;
+      padding: 6px 3px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .mode-btn.active {
+      background: var(--primary);
+      border-color: #fca5a5;
+      color: white;
+      box-shadow: 0 0 12px rgba(255, 71, 96, 0.5);
+    }
+
+    .control-actions { display: flex; gap: 8px; }
+    .btn {
+      padding: 9px 14px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #334155; color: #fff; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-cancel { background: #475569; color: #fff; }
+
+    /* EDIT POPUP MODAL */
+    #edit-popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 120;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .modal-box {
+      background: #182030;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      width: min(460px, 95vw);
+      padding: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+    }
+
+    /* TIMETABLE DRAWER */
+    #remote-drawer {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      right: -520px;
+      width: min(460px, 100vw);
+      height: 100%;
+      height: 100dvh;
+      background: #111827;
+      border-left: 1px solid var(--border);
+      box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #remote-drawer.open { right: 0; }
+
+    .remote-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .remote-content { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+    .station-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 100%;
+      overflow-y: auto;
+    }
+    .station-item {
+      background: #1f2937;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .station-item.active {
+      border-color: var(--primary);
+      background: rgba(255, 71, 96, 0.2);
+    }
+    .station-info h4 { font-size: 0.88rem; margin-bottom: 2px; }
+    .station-info span { font-size: 0.72rem; color: var(--text-muted); }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .input-group label { font-size: 0.74rem; color: var(--text-muted); }
+    .input-group input, .input-group select {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      outline: none;
+    }
+
+    /* ACCOUNT MODAL */
+    #accountModal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px); z-index: 130; display: none;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    #accountModal.open { display: flex; }
+
+    #start-overlay {
+      position: fixed; inset: 0; background: #030712;
+      display: flex; justify-content: center; align-items: center; z-index: 150;
+    }
+    .toast {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.92); border: 1px solid var(--primary);
+      padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; z-index: 200; display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- TOPBAR -->
+<header>
+  <div class="brand-group">
+    <div class="brand-title">
+      <i class="fa-solid fa-people-roof"></i>
+      <span>The Big Family Radio</span>
+    </div>
+    <div class="badge badge-live">
+      <span class="pulse-dot"></span>
+      <span>ON AIR</span>
+    </div>
+    <div class="badge badge-listeners">
+      <i class="fa-solid fa-headphones"></i>
+      <span id="liveListenerCountDisplay">1</span>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:8px;">
+    <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem;" onclick="openAccountModal()">
+      <i class="fa-solid fa-user"></i>
+      <span id="headerAccountLabel">Login</span>
+    </button>
+  </div>
+</header>
+
+<!-- STAGE DUAL-SPEAKER HARDWARE DESIGN -->
+<div id="stage">
+  <div id="radio-chassis">
+    
+    <!-- LEFT CHANNEL SPEAKER -->
+    <div class="speaker-unit" id="speaker-left">
+      <span class="speaker-label">◀ LEFT CHANNEL</span>
+      <div class="cone-housing">
+        <canvas class="speaker-canvas" id="canvas-left"></canvas>
+        <div class="dust-cap" id="cap-left"></div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-row">
+          <span>LEVEL:</span>
+          <span id="left-db-txt">-∞ dB</span>
+        </div>
+        <div class="db-meter-track">
+          <div class="db-meter-fill" id="left-db-fill"></div>
+        </div>
+        <div class="telemetry-row" style="margin-top: 2px;">
+          <span>FREQ:</span>
+          <span id="left-freq-txt">0 Hz</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER DSP & SCHEDULE CONSOLE -->
+    <div id="center-console">
+      <div class="tuner-glass">
+        <span class="badge" id="stream-status" style="background:rgba(255,71,96,0.2); color:var(--primary); margin-bottom:4px;">AUTOPILOT SCHEDULER</span>
+        <h2 id="station-title">The Big Family Radio</h2>
+        <p id="station-meta">Synchronizing live timeline...</p>
+      </div>
+
+      <!-- 6 SOUND DSP MODES -->
+      <div class="sound-modes-container">
+        <span class="modes-label">DSP SOUND SURROUND MODES</span>
+        <div class="modes-pills">
+          <button class="mode-btn active" onclick="setSoundMode('2.0')">2.0 Direct</button>
+          <button class="mode-btn" onclick="setSoundMode('2.0-surround')">2.0 Surround</button>
+          <button class="mode-btn" onclick="setSoundMode('2.1')">2.1 Bass+</button>
+          <button class="mode-btn" onclick="setSoundMode('3.0')">3.0 Center</button>
+          <button class="mode-btn" onclick="setSoundMode('4.0')">4.0 Quad</button>
+          <button class="mode-btn" onclick="setSoundMode('5.1')">5.1 Virtual</button>
+        </div>
+      </div>
+
+      <div class="control-actions">
+        <button class="btn btn-primary" style="flex:1;" onclick="openAddPopup()">+ Add Station</button>
+        <button class="btn btn-secondary" onclick="toggleRemote()">Timetable</button>
+        <button class="btn btn-secondary" onclick="syncWithGoogleSheet()">Sync Sheet</button>
+      </div>
+    </div>
+
+    <!-- RIGHT CHANNEL SPEAKER -->
+    <div class="speaker-unit" id="speaker-right">
+      <span class="speaker-label">RIGHT CHANNEL ▶</span>
+      <div class="cone-housing">
+        <canvas class="speaker-canvas" id="canvas-right"></canvas>
+        <div class="dust-cap" id="cap-right"></div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-row">
+          <span>LEVEL:</span>
+          <span id="right-db-txt">-∞ dB</span>
+        </div>
+        <div class="db-meter-track">
+          <div class="db-meter-fill" id="right-db-fill"></div>
+        </div>
+        <div class="telemetry-row" style="margin-top: 2px;">
+          <span>FREQ:</span>
+          <span id="right-freq-txt">0 Hz</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- POPUP EDIT / ADD MODAL -->
+<div id="edit-popup-overlay">
+  <div class="modal-box">
+    <h3 id="popup-heading" style="margin-bottom: 14px;">Edit Radio Station</h3>
+    <form id="popup-form" onsubmit="handlePopupSubmit(event)">
+      <input type="hidden" id="pop-index" value="-1" />
+      
+      <div style="display:flex; gap: 8px;">
+        <div class="input-group" style="flex:1;">
+          <label>Start Time (HH:mm)</label>
+          <input type="text" id="pop-start" placeholder="08:00" required pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" />
+        </div>
+        <div class="input-group" style="flex:1;">
+          <label>End Time (HH:mm)</label>
+          <input type="text" id="pop-end" placeholder="12:00" required pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" />
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Station Name</label>
+        <input type="text" id="pop-title" placeholder="e.g. BBC World Service" required />
+      </div>
+
+      <div style="display:flex; gap: 8px;">
+        <div class="input-group" style="flex:1;">
+          <label>Category</label>
+          <select id="pop-category">
+            <option value="News">News</option>
+            <option value="Learning">Learning & Talks</option>
+            <option value="Entertainment">Entertainment & Music</option>
+            <option value="Kids">Kids & Youth</option>
+          </select>
+        </div>
+        <div class="input-group" style="flex:1;">
+          <label>Language</label>
+          <input type="text" id="pop-lang" placeholder="e.g. English / Telugu" />
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Stream URL (.mp3, .aac, .m3u8)</label>
+        <input type="url" id="pop-url" placeholder="https://..." required />
+      </div>
+
+      <div style="display:flex; gap: 8px; margin-top: 16px;">
+        <button type="submit" class="btn btn-primary" style="flex:1;">Save Station</button>
+        <button type="button" class="btn btn-cancel" onclick="closePopup()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- TIMETABLE DRAWER -->
+<div id="remote-drawer">
+  <div class="remote-header">
+    <h3>Station Timetable</h3>
+    <button class="btn btn-secondary" onclick="toggleRemote()">✕</button>
+  </div>
+  <div class="remote-content">
+    <div class="station-list" id="remote-station-list"></div>
+  </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div id="accountModal" onclick="closeAccountModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3><i class="fa-solid fa-user-circle" style="color:var(--primary); margin-right:8px;"></i>Family Member Portal</h3>
+      <button class="btn btn-secondary" style="padding:4px 8px;" onclick="closeAccountModal()">✕</button>
+    </div>
+
+    <div id="authGuestBox">
+      <div class="input-group">
+        <label>Mobile Number</label>
+        <input type="tel" id="loginMobile" placeholder="e.g. 9876543210">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="Enter password">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-primary" style="flex:1;" onclick="submitLogin()">Sign In</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="submitRegister()">Register</button>
+      </div>
+    </div>
+
+    <div id="authMemberBox" style="display:none; text-align:center;">
+      <h4 id="profUsername" style="color:var(--cyan); margin-bottom:4px;">Member</h4>
+      <p id="profMobile" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:14px;">+91-0000000000</p>
+      <button class="btn btn-secondary" onclick="logout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<audio id="radio-core" crossorigin="anonymous" preload="auto"></audio>
+
+<div id="start-overlay">
+  <button class="btn btn-primary" style="padding: 16px 36px; font-size: 1.1rem;" id="init-btn">
+    Start The Big Family Radio
+  </button>
+</div>
+
+<script>
+  const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgyjxUTrF-VLVBEiecp3GtlgVS5J4H8pRrZRx81CrgWe9g3mvY_r4AA-QLG7tGOX4bPQ/exec";
+  const STORAGE_KEY = "big_family_radio_v1";
+
+  let listenerId = localStorage.getItem('bfr_listener_id') || 'L_' + Math.random().toString(36).substring(2, 9);
+  localStorage.setItem('bfr_listener_id', listenerId);
+
+  const DEFAULT_SCHEDULE = [
+    { startTime: "05:00", endTime: "05:20", title: "Fun Kids UK (Live Radio)", category: "Kids", language: "English", url: "https://radio.canstream.co.uk:8021/live.mp3" },
+    { startTime: "05:20", endTime: "05:40", title: "Radio Mirchi Top 20", category: "Entertainment", language: "Hindi", url: "https://stream.zeno.fm/0r0xa792kwzuv" },
+    { startTime: "05:40", endTime: "06:00", title: "BBC World Service", category: "News", language: "English", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service" },
+    { startTime: "06:00", endTime: "06:20", title: "NPR News 24 Hour", category: "News", language: "English", url: "https://npr-ice.streamguys1.com/live.mp3" },
+    { startTime: "06:20", endTime: "06:40", title: "LBC News London", category: "News", language: "English", url: "https://media-ice.musicradio.com/LBCNewsUKMP3" },
+    { startTime: "06:40", endTime: "07:00", title: "France 24 English Radio", category: "News", language: "English", url: "https://stream.radiofrance.fr/fip/fip.m3u8" },
+    { startTime: "07:00", endTime: "07:20", title: "Times Radio UK", category: "News", language: "English", url: "https://timesradio.wireless.radio/stream" },
+    { startTime: "07:20", endTime: "07:40", title: "WNYC AM (Podcasts & Debate)", category: "Learning", language: "English", url: "https://fm939.wnyc.org/wnycfm-web" },
+    { startTime: "07:40", endTime: "08:00", title: "KQED Public Talks (San Francisco)", category: "Learning", language: "English", url: "https://streams.kqed.org/kqedradio.mp3" },
+    { startTime: "08:00", endTime: "08:20", title: "KEXP Discovery & Education", category: "Learning", language: "English", url: "https://kexp.streamguys1.com/kexp160.aac" },
+    { startTime: "08:20", endTime: "08:40", title: "WBEZ Chicago Public Radio", category: "Learning", language: "English", url: "https://stream.wbez.org/wbez128.mp3" },
+    { startTime: "08:40", endTime: "09:00", title: "Capital FM UK (Global Hits)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/CapitalMP3" },
+    { startTime: "09:00", endTime: "09:20", title: "Heart UK (80s & 90s Hits)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/HeartUKMP3" },
+    { startTime: "09:20", endTime: "09:40", title: "Smooth Radio UK (Relaxing Favorites)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/SmoothUKMP3" },
+    { startTime: "09:40", endTime: "10:00", title: "Classic FM London", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/ClassicFMMP3" },
+    { startTime: "10:00", endTime: "10:20", title: "Radio X UK (Indie Rock)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/RadioXUKMP3" },
+    { startTime: "10:20", endTime: "10:40", title: "Gold Radio UK (Classic Oldies)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/GoldMP3" },
+    { startTime: "10:40", endTime: "11:00", title: "Swiss Classic Radio", category: "Entertainment", language: "Classical", url: "https://stream.srg-ssr.ch/m/rsc_de/mp3_128" },
+    { startTime: "11:00", endTime: "11:20", title: "WQXR Classical New York", category: "Entertainment", language: "English", url: "https://stream.wqxr.org/wqxr-web" },
+    { startTime: "11:20", endTime: "11:40", title: "CNA938 News (Singapore Mediacorp)", category: "News", language: "English", url: "https://mediacorp.rastream.com/cna938" },
+    { startTime: "11:40", endTime: "12:00", title: "NHK World-Japan English", category: "Learning", language: "English", url: "https://nhkworld.webcdn.stream.ne.jp/www11/nhkworld-radio/global/2007545/live.m3u8" },
+    { startTime: "12:00", endTime: "12:20", title: "KBS World Radio English (South Korea)", category: "Learning", language: "English", url: "https://world.kbs.co.kr/live/radio/ch1/playlist.m3u8" },
+    { startTime: "12:20", endTime: "12:40", title: "RTHK Radio 3 English (Hong Kong)", category: "News", language: "English", url: "https://stm.rthk.hk/radio3" },
+    { startTime: "12:40", endTime: "13:00", title: "BFM 89.9 Business & Learning (Malaysia)", category: "Learning", language: "English", url: "https://stream.bfm.my/stream" },
+    { startTime: "13:00", endTime: "13:20", title: "Traxx FM English (RTM Malaysia)", category: "Entertainment", language: "English", url: "https://traxxfm.rtm.gov.my/live" },
+    { startTime: "13:20", endTime: "13:40", title: "Radio Thailand World Service English", category: "News", language: "English", url: "https://radiothai.prd.go.th/live/world/playlist.m3u8" },
+    { startTime: "13:40", endTime: "14:00", title: "DZRJ 810 AM The Voice of the Philippines", category: "News", language: "English", url: "https://icecast.eradioportal.com:8443/dzrj_am" },
+    { startTime: "14:00", endTime: "14:20", title: "Yes 93.3 Pop & Culture (Singapore)", category: "Entertainment", language: "English", url: "https://mediacorp.rastream.com/yes933" },
+    { startTime: "14:20", endTime: "14:40", title: "Al Jazeera English Audio Channel", category: "News", language: "English", url: "https://live-hls-web-aje.getaj.net/AJE/01.m3u8" },
+    { startTime: "14:40", endTime: "15:00", title: "Dubai Eye 103.8 (News & Education)", category: "Learning", language: "English", url: "https://stream.arn.ae/dubaieye.mp3" },
+    { startTime: "15:00", endTime: "15:20", title: "SLBC English National Service (Sri Lanka)", category: "Learning", language: "English", url: "https://stream.zeno.fm/y1q8h55n908uv" },
+    { startTime: "15:20", endTime: "15:40", title: "Radio Taiwan International English", category: "Learning", language: "English", url: "https://stream.rti.org.tw/live/rti-en/playlist.m3u8" },
+    { startTime: "15:40", endTime: "16:00", title: "Gold 905 Mediacorp (Singapore)", category: "Entertainment", language: "English", url: "https://mediacorp.rastream.com/gold905" },
+    { startTime: "16:00", endTime: "16:20", title: "City Plus FM Knowledge & Talks", category: "Learning", language: "English", url: "https://stream.cityplusfm.my/stream" },
+    { startTime: "16:20", endTime: "16:40", title: "TBS e-FM 101.3 English (Seoul)", category: "Learning", language: "English", url: "https://efm.tbs.seoul.kr/live/efm.m3u8" },
+    { startTime: "16:40", endTime: "17:00", title: "Voice of Vietnam International (VOV5)", category: "News", language: "English", url: "https://vov5.vov.gov.vn/live/playlist.m3u8" },
+    { startTime: "17:00", endTime: "17:20", title: "UNESCO World Heritage Radio", category: "Learning", language: "English", url: "https://ice1.somafm.com/missioncontrol-128-mp3" },
+    { startTime: "17:20", endTime: "17:40", title: "TED Talks Audio & Debate Channel", category: "Learning", language: "English", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_fourfm" },
+    { startTime: "17:40", endTime: "18:00", title: "World Nature & Discovery Stream", category: "Learning", language: "English", url: "https://ice1.somafm.com/groovesalad-128-mp3" },
+    { startTime: "18:00", endTime: "18:20", title: "AIR ESD English (External Services Division)", category: "News", language: "English", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/esd/playlist.m3u8" },
+    { startTime: "18:20", endTime: "18:40", title: "AIR National News Live (India)", category: "News", language: "English/Hindi", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/allindianews/playlist.m3u8" },
+    { startTime: "18:40", endTime: "19:00", title: "AIR FM Rainbow India (Western Hits)", category: "Entertainment", language: "English", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/fmrainbow/playlist.m3u8" },
+    { startTime: "19:00", endTime: "19:20", title: "AIR FM Gold English Talks & Classics", category: "Learning", language: "English", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/fmgold/playlist.m3u8" },
+    { startTime: "19:20", endTime: "19:40", title: "IndiEarth Outernational (Indie English India)", category: "Entertainment", language: "English", url: "https://stream.zeno.fm/4vbg657p2zquv" },
+    { startTime: "19:40", endTime: "20:00", title: "AIR Hyderabad Live (Telangana)", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airtelugu/playlist.m3u8" },
+    { startTime: "20:00", endTime: "20:20", title: "Radio City Telugu Live", category: "Entertainment", language: "Telugu", url: "https://prclive4.listen2myradio.com/live.mp3?type=s1&mount=/8136" },
+    { startTime: "20:20", endTime: "20:40", title: "Telugu NRI Live Radio", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/f3wvbbk8v18uv" },
+    { startTime: "20:40", endTime: "21:00", title: "Hungama Telugu Super Hits", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/2w3x84y12reuv" },
+    { startTime: "21:00", endTime: "21:20", title: "AIR Vijayawada Rainbow Live (AP)", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airvijayawada/playlist.m3u8" },
+    { startTime: "21:20", endTime: "21:40", title: "AIR Visakhapatnam Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airvisakhapatnam/playlist.m3u8" },
+    { startTime: "21:40", endTime: "22:00", title: "AIR Warangal Live (Telangana)", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airwarangal/playlist.m3u8" },
+    { startTime: "22:00", endTime: "22:20", title: "AIR Tirupati Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airtirupati/playlist.m3u8" },
+    { startTime: "22:20", endTime: "22:40", title: "AIR Kurnool Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airkurnool/playlist.m3u8" },
+    { startTime: "22:40", endTime: "23:00", title: "AIR Kothagudem Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airkothagudem/playlist.m3u8" },
+    { startTime: "23:00", endTime: "23:20", title: "AIR Nizamabad Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airnizamabad/playlist.m3u8" },
+    { startTime: "23:20", endTime: "23:40", title: "AIR Raagam Carnatic Classical Live", category: "Entertainment", language: "Telugu/Sanskrit", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airragam/playlist.m3u8" },
+    { startTime: "23:40", endTime: "00:00", title: "Bhakti Tarangini Telugu Radio", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/n56s4b374zuvv" },
+    { startTime: "00:00", endTime: "02:30", title: "Telugu One Radio TORi Live", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/s4k8qfv2m4zuv" },
+    { startTime: "02:30", endTime: "05:00", title: "Telugu Christian Fellowship Radio", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/4wvqq77y2reuv" }
+  ];
+
+  let schedule = [];
+  let activeChannel = null;
+  let manualOverride = false;
+  let hlsInstance = null;
+  let currentUser = JSON.parse(localStorage.getItem('bfr_user') || 'null');
+
+  // Stereo Audio Context & DSP Engine
+  let audioCtx, audioSource, splitterNode, analyserL, analyserR, dataL, dataR;
+  let dspBassFilter, dspMidFilter, dspGain;
+  let currentSoundMode = "2.0";
+
+  const audio = document.getElementById("radio-core");
+  const stationTitleEl = document.getElementById("station-title");
+  const stationMetaEl = document.getElementById("station-meta");
+  const streamStatusEl = document.getElementById("stream-status");
+  const remoteDrawer = document.getElementById("remote-drawer");
+  const remoteList = document.getElementById("remote-station-list");
+  const popupOverlay = document.getElementById("edit-popup-overlay");
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3000);
+  }
+
+  function initializeScheduleData() {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      try {
+        schedule = JSON.parse(cached);
+        if (schedule.length > 0) return;
+      } catch (e) {}
+    }
+    schedule = [...DEFAULT_SCHEDULE];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+  }
+
+  function saveScheduleData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+    renderRemoteList();
+  }
+
+  function initStereoAudioEngine() {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+
+      audioSource = audioCtx.createMediaElementSource(audio);
+      splitterNode = audioCtx.createChannelSplitter(2);
+
+      analyserL = audioCtx.createAnalyser();
+      analyserL.fftSize = 128;
+      analyserR = audioCtx.createAnalyser();
+      analyserR.fftSize = 128;
+
+      dataL = new Uint8Array(analyserL.frequencyBinCount);
+      dataR = new Uint8Array(analyserR.frequencyBinCount);
+
+      dspBassFilter = audioCtx.createBiquadFilter();
+      dspBassFilter.type = "lowshelf";
+      dspBassFilter.frequency.value = 180;
+      dspBassFilter.gain.value = 0;
+
+      dspMidFilter = audioCtx.createBiquadFilter();
+      dspMidFilter.type = "peaking";
+      dspMidFilter.frequency.value = 2500;
+      dspMidFilter.gain.value = 0;
+
+      dspGain = audioCtx.createGain();
+      dspGain.gain.value = 1.0;
+
+      audioSource.connect(splitterNode);
+      splitterNode.connect(analyserL, 0);
+      splitterNode.connect(analyserR, 1);
+
+      audioSource.connect(dspBassFilter);
+      dspBassFilter.connect(dspMidFilter);
+      dspMidFilter.connect(dspGain);
+      dspGain.connect(audioCtx.destination);
+
+      startStereoVisualizerLoop();
+    } catch (e) {
+      console.warn("Web Audio API restricted:", e);
+    }
+  }
+
+  function setSoundMode(mode) {
+    currentSoundMode = mode;
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.innerText.toLowerCase().includes(mode.replace("-", " ")));
+    });
+
+    if (!dspBassFilter || !dspGain) return;
+
+    switch(mode) {
+      case "2.0":
+        dspBassFilter.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+        dspMidFilter.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+        dspGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.05);
+        break;
+      case "2.0-surround":
+        dspBassFilter.gain.setTargetAtTime(2.5, audioCtx.currentTime, 0.05);
+        dspMidFilter.gain.setTargetAtTime(3.0, audioCtx.currentTime, 0.05);
+        dspGain.gain.setTargetAtTime(1.1, audioCtx.currentTime, 0.05);
+        break;
+      case "2.1":
+        dspBassFilter.gain.setTargetAtTime(8.5, audioCtx.currentTime, 0.05);
+        dspMidFilter.gain.setTargetAtTime(0.0, audioCtx.currentTime, 0.05);
+        dspGain.gain.setTargetAtTime(1.05, audioCtx.currentTime, 0.05);
+        break;
+      case "3.0":
+        dspBassFilter.gain.setTargetAtTime(-1.0, audioCtx.currentTime, 0.05);
+        dspMidFilter.gain.setTargetAtTime(6.0, audioCtx.currentTime, 0.05);
+        dspGain.gain.setTargetAtTime(1.1, audioCtx.currentTime, 0.05);
+        break;
+      case "4.0":
+        dspBassFilter.gain.setTargetAtTime(3.0, audioCtx.currentTime, 0.05);
+        dspMidFilter.gain.setTargetAtTime(4.0, audioCtx.currentTime, 0.05);
+        dspGain.gain.setTargetAtTime(1.2, audioCtx.currentTime, 0.05);
+        break;
+      case "5.1":
+        dspBassFilter.gain.setTargetAtTime(7.0, audioCtx.currentTime, 0.05);
+        dspMidFilter.gain.setTargetAtTime(4.5, audioCtx.currentTime, 0.05);
+        dspGain.gain.setTargetAtTime(1.25, audioCtx.currentTime, 0.05);
+        break;
+    }
+  }
+
+  function startStereoVisualizerLoop() {
+    const cvsL = document.getElementById("canvas-left");
+    const cvsR = document.getElementById("canvas-right");
+    const ctxL = cvsL.getContext("2d");
+    const ctxR = cvsR.getContext("2d");
+    const capL = document.getElementById("cap-left");
+    const capR = document.getElementById("cap-right");
+
+    const txtDbL = document.getElementById("left-db-txt");
+    const txtDbR = document.getElementById("right-db-txt");
+    const fillDbL = document.getElementById("left-db-fill");
+    const fillDbR = document.getElementById("right-db-fill");
+    const txtFreqL = document.getElementById("left-freq-txt");
+    const txtFreqR = document.getElementById("right-freq-txt");
+
+    function fit() {
+      cvsL.width = cvsL.parentElement.clientWidth;
+      cvsL.height = cvsL.parentElement.clientHeight;
+      cvsR.width = cvsR.parentElement.clientWidth;
+      cvsR.height = cvsR.parentElement.clientHeight;
+    }
+    fit();
+    window.addEventListener("resize", fit);
+
+    function drawCone(ctx, canvas, analyser, data, cap, txtDb, fillDb, txtFreq, strokeColor) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!analyser) return;
+
+      analyser.getByteFrequencyData(data);
+      let sum = 0, maxVal = 0, maxIdx = 0;
+      for (let i = 0; i < data.length; i++) {
+        const val = data[i];
+        sum += val * val;
+        if (val > maxVal) { maxVal = val; maxIdx = i; }
+      }
+
+      const rms = Math.sqrt(sum / data.length);
+      const db = rms > 0 ? Math.max(-60, Math.round(20 * Math.log10(rms / 255))) : -60;
+      const freq = Math.round((maxIdx * (audioCtx.sampleRate / 2)) / analyser.frequencyBinCount);
+
+      txtDb.innerText = db > -60 ? `${db} dB` : "-∞ dB";
+      fillDb.style.width = `${Math.min(100, Math.max(0, (db + 60) * 1.66))}%`;
+      txtFreq.innerText = maxVal > 15 ? `${freq} Hz` : "0 Hz";
+
+      cap.style.transform = `scale(${1 + (rms / 255) * 0.18})`;
+
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = (canvas.width / 2) * 0.72;
+      const bars = data.length;
+
+      for (let i = 0; i < bars; i++) {
+        const val = data[i];
+        const rad = (Math.PI * 2 / bars) * i;
+        const barLen = (val / 255) * (radius * 0.45);
+
+        const x1 = cx + Math.cos(rad) * radius;
+        const y1 = cy + Math.sin(rad) * radius;
+        const x2 = cx + Math.cos(rad) * (radius + barLen);
+        const y2 = cy + Math.sin(rad) * (radius + barLen);
+
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      drawCone(ctxL, cvsL, analyserL, dataL, capL, txtDbL, fillDbL, txtFreqL, "#00d2ff");
+      drawCone(ctxR, cvsR, analyserR, dataR, capR, txtDbR, fillDbR, txtFreqR, "#ff4760");
+    }
+    loop();
+  }
+
+  function toMinutes(t) {
+    if (!t) return 0;
+    const parts = t.toString().trim().split(":");
+    return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+  }
+
+  function getScheduledChannel() {
+    const now = new Date();
+    const current = now.getHours() * 60 + now.getMinutes();
+
+    return schedule.find(item => {
+      const start = toMinutes(item.startTime);
+      const end = toMinutes(item.endTime);
+      if (start < end) return current >= start && current < end;
+      if (start > end) return current >= start || current < end;
+      return true;
+    }) || schedule[0];
+  }
+
+  function playStream(station, isManual = false) {
+    if (!station) return;
+    activeChannel = station;
+    manualOverride = isManual;
+
+    stationTitleEl.innerText = station.title;
+    stationMetaEl.innerText = `${station.startTime} - ${station.endTime} | ${station.category || "General"} | ${station.language || "English"}`;
+    streamStatusEl.innerText = isManual ? "MANUAL OVERRIDE" : "AUTOPILOT SCHEDULER";
+
+    if (hlsInstance) {
+      hlsInstance.destroy();
+      hlsInstance = null;
+    }
+    audio.pause();
+    audio.removeAttribute("src");
+
+    if (station.url.includes(".m3u8") && Hls.isSupported()) {
+      hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
+      hlsInstance.loadSource(station.url);
+      hlsInstance.attachMedia(audio);
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => audio.play().catch(() => {}));
+    } else {
+      audio.src = station.url;
+      audio.play().catch(e => console.warn("Playback blocked:", e));
+    }
+
+    renderRemoteList();
+    sendHeartbeat();
+  }
+
+  function evaluateSchedule() {
+    if (manualOverride) return;
+    const scheduled = getScheduledChannel();
+    if (scheduled && (!activeChannel || activeChannel.url !== scheduled.url)) {
+      playStream(scheduled, false);
+    }
+  }
+
+  // MODAL WORKFLOWS
+  function openAddPopup() {
+    document.getElementById("popup-heading").innerText = "Add Radio Station";
+    document.getElementById("pop-index").value = "-1";
+    document.getElementById("popup-form").reset();
+    popupOverlay.style.display = "flex";
+  }
+
+  function openEditPopup(index) {
+    const station = schedule[index];
+    document.getElementById("popup-heading").innerText = `Edit: ${station.title}`;
+    document.getElementById("pop-index").value = index;
+    document.getElementById("pop-start").value = station.startTime;
+    document.getElementById("pop-end").value = station.endTime;
+    document.getElementById("pop-title").value = station.title;
+    document.getElementById("pop-category").value = station.category || "News";
+    document.getElementById("pop-lang").value = station.language || "English";
+    document.getElementById("pop-url").value = station.url;
+    popupOverlay.style.display = "flex";
+  }
+
+  function closePopup() { popupOverlay.style.display = "none"; }
+
+  function handlePopupSubmit(e) {
+    e.preventDefault();
+    const editIdx = parseInt(document.getElementById("pop-index").value, 10);
+    const stationData = {
+      startTime: document.getElementById("pop-start").value.trim(),
+      endTime: document.getElementById("pop-end").value.trim(),
+      title: document.getElementById("pop-title").value.trim(),
+      category: document.getElementById("pop-category").value,
+      language: document.getElementById("pop-lang").value.trim(),
+      url: document.getElementById("pop-url").value.trim()
+    };
+
+    if (editIdx >= 0) {
+      schedule[editIdx] = stationData;
+    } else {
+      schedule.push(stationData);
+    }
+
+    schedule.sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+    saveScheduleData();
+    closePopup();
+    evaluateSchedule();
+    showToast("Station Saved & Timeline Updated!");
+  }
+
+  function removeStation(index) {
+    schedule.splice(index, 1);
+    saveScheduleData();
+    showToast("Station Removed");
+  }
+
+  function toggleRemote() { remoteDrawer.classList.toggle("open"); }
+
+  function renderRemoteList() {
+    remoteList.innerHTML = "";
+    schedule.forEach((item, index) => {
+      const el = document.createElement("div");
+      el.className = `station-item ${activeChannel && activeChannel.url === item.url ? "active" : ""}`;
+      el.innerHTML = `
+        <div class="station-info" style="flex:1;">
+          <h4>${item.title}</h4>
+          <span>${item.startTime} - ${item.endTime} • ${item.category || ""} • ${item.language || ""}</span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="event.stopPropagation(); openEditPopup(${index})">✏ Edit</button>
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="event.stopPropagation(); removeStation(${index})">✕</button>
+        </div>
+      `;
+      el.onclick = () => playStream(item, true);
+      remoteList.appendChild(el);
+    });
+  }
+
+  async function syncWithGoogleSheet() {
+    try {
+      streamStatusEl.innerText = "SAVING TO GOOGLE SHEET...";
+      const res = await fetch(CONFIG_APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "saveSchedule", channels: schedule })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        streamStatusEl.innerText = `SHEET SYNCED (${data.count} CHANNELS)`;
+      } else {
+        streamStatusEl.innerText = "SYNC FAILED: " + (data.message || "Unknown error");
+      }
+      setTimeout(evaluateSchedule, 3000);
+    } catch (err) {
+      streamStatusEl.innerText = "OFFLINE - LOCAL STORAGE SAVED";
+      setTimeout(evaluateSchedule, 3000);
+    }
+  }
+
+  async function loadScheduleFromSheet() {
+    if (!CONFIG_APPS_SCRIPT_URL) return;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    try {
+      const res = await fetch(`${CONFIG_APPS_SCRIPT_URL}?action=getSchedule`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      const data = await res.json();
+      if (data && data.channels && data.channels.length > 0) {
+        schedule = data.channels;
+        saveScheduleData();
+        evaluateSchedule();
+      }
+    } catch (err) {}
+  }
+
+  // FAMILY ACCOUNT & HEARTBEAT
+  function openAccountModal() { document.getElementById('accountModal').classList.add('open'); }
+  function closeAccountModal(e) {
+    if (!e || e.target === document.getElementById('accountModal')) {
+      document.getElementById('accountModal').classList.remove('open');
+    }
+  }
+
+  function renderAuth() {
+    const g = document.getElementById('authGuestBox');
+    const m = document.getElementById('authMemberBox');
+    const lbl = document.getElementById('headerAccountLabel');
+
+    if (!currentUser) {
+      g.style.display = 'block'; m.style.display = 'none';
+      lbl.innerText = "Login";
+    } else {
+      g.style.display = 'none'; m.style.display = 'block';
+      lbl.innerText = currentUser.username;
+      document.getElementById('profUsername').innerText = currentUser.username;
+      document.getElementById('profMobile').innerText = currentUser.mobile;
+    }
+  }
+
+  async function submitLogin() {
+    const mobile = document.getElementById('loginMobile').value.trim();
+    const password = document.getElementById('loginPass').value.trim();
+    if (!mobile || !password) return showToast("Enter credentials");
+
+    try {
+      const res = await fetch(CONFIG_APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "login", mobile, password })
+      });
+      const d = await res.json();
+      if (d.success) {
+        currentUser = d.user;
+        localStorage.setItem('bfr_user', JSON.stringify(currentUser));
+        renderAuth();
+        closeAccountModal();
+        showToast("Welcome " + currentUser.username);
+      } else {
+        showToast(d.message || "Login failed");
+      }
+    } catch (e) {
+      showToast("Authentication server offline");
+    }
+  }
+
+  async function submitRegister() {
+    const mobile = document.getElementById('loginMobile').value.trim();
+    const password = document.getElementById('loginPass').value.trim();
+    const username = prompt("Enter your Name for Family Radio:");
+    if (!username || !mobile || !password) return;
+
+    try {
+      const res = await fetch(CONFIG_APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "register", username, mobile, password })
+      });
+      const d = await res.json();
+      if (d.success) {
+        currentUser = d.user;
+        localStorage.setItem('bfr_user', JSON.stringify(currentUser));
+        renderAuth();
+        closeAccountModal();
+        showToast("Registered successfully!");
+      } else {
+        showToast(d.message || "Registration failed");
+      }
+    } catch (e) {
+      showToast("Server offline");
+    }
+  }
+
+  function logout() {
+    currentUser = null;
+    localStorage.removeItem('bfr_user');
+    renderAuth();
+    showToast("Logged out");
+  }
+
+  async function sendHeartbeat() {
+    try {
+      const res = await fetch(CONFIG_APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "heartbeat",
+          listenerId,
+          username: currentUser ? currentUser.username : "Family Guest",
+          isPlaying: !audio.paused
+        })
+      });
+      const data = await res.json();
+      if (data.success && typeof data.activeCount === 'number') {
+        document.getElementById('liveListenerCountDisplay').innerText = `${Math.max(1, data.activeCount)}`;
+      }
+    } catch(e) {}
+  }
+
+  // APP INITIALIZATION
+  document.getElementById("init-btn").addEventListener("click", () => {
+    document.getElementById("start-overlay").style.display = "none";
+
+    try {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) elem.requestFullscreen().catch(() => {});
+      else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen().catch(() => {});
+    } catch (e) {}
+
+    initializeScheduleData();
+    initStereoAudioEngine();
+    renderAuth();
+
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+
+    renderRemoteList();
+    evaluateSchedule();
+
+    loadScheduleFromSheet();
+    setInterval(evaluateSchedule, 5000);
+    setInterval(sendHeartbeat, 20000);
+  });
+</script>
+</body>
+</html>

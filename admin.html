@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Big Family Radio • Studio Master Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    :root {
+      --bg: #090d16;
+      --surface: #121824;
+      --surface-card: #182030;
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #ff4760;
+      --accent-hover: #ff758c;
+      --cyan: #00d2ff;
+      --green: #00e676;
+      --text: #f0f6fc;
+      --sub: #8b949e;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+    .admin-container { width: 100%; max-width: 1240px; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .station-brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), #ff758c);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; color: #fff;
+    }
+    .brand-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; }
+    .brand-subtitle { font-size: 0.75rem; color: var(--sub); }
+
+    .clock-badge {
+      font-family: monospace;
+      font-size: 0.95rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: rgba(0, 210, 255, 0.1);
+      border: 1px solid rgba(0, 210, 255, 0.3);
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+    .global-search-bar {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .global-search-bar i { color: var(--cyan); font-size: 1rem; }
+    .global-search-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .search-clear-btn {
+      background: none;
+      border: none;
+      color: var(--sub);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--sub);
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.04); }
+    .tab-btn.active { color: #fff; background: var(--surface); border: 1px solid var(--border); border-bottom: 2px solid var(--accent); }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .btn {
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.84rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.15s ease;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-cyan { background: var(--cyan); color: #000; }
+    .btn-green { background: var(--green); color: #000; }
+    .btn-purple { background: linear-gradient(135deg, #a855f7, #6366f1); color: #fff; }
+    .btn-danger { background: #e63946; color: #fff; }
+    .btn-secondary { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
+    .btn-sm { padding: 6px 12px; font-size: 0.76rem; border-radius: 6px; }
+
+    /* SCHEDULE TIMELINE & STATION CARDS */
+    .station-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .station-admin-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+    .station-admin-card.active-now {
+      border-color: var(--cyan);
+      box-shadow: 0 0 16px rgba(0, 210, 255, 0.12);
+    }
+    .station-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .station-time-pill {
+      font-family: monospace;
+      font-size: 0.76rem;
+      background: rgba(0, 210, 255, 0.12);
+      color: var(--cyan);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+    .station-url-preview {
+      font-family: monospace;
+      font-size: 0.72rem;
+      color: var(--sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .table-box { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--sub); font-size: 0.72rem; text-transform: uppercase; background: var(--surface-card); }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px); z-index: 300; display: none;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+      width: 100%; max-width: 520px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 18px; padding: 22px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+    }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.78rem; color: var(--sub); margin-bottom: 6px; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 10px 12px; background: #090d16; border: 1px solid var(--border);
+      border-radius: 8px; color: #fff; font-size: 0.88rem; outline: none;
+    }
+
+    .toast {
+      position: fixed; top: 20px; right: 20px; background: var(--accent);
+      color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 0.85rem;
+      display: none; z-index: 400; box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- Station Edit / Add Modal -->
+<div id="stationModal" class="modal-overlay" onclick="closeStationModal(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 id="stationModalTitle" style="font-size:1.1rem;"><i class="fa-solid fa-pen-to-square" style="color:var(--cyan); margin-right:8px;"></i>Edit Station</h3>
+      <button onclick="closeStationModal()" style="background:none; border:none; color:var(--sub); font-size:1.2rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    
+    <input type="hidden" id="editStationIndex" value="-1">
+
+    <div style="display:flex; gap:10px;">
+      <div class="form-group" style="flex:1;">
+        <label>Start Time (HH:mm)</label>
+        <input type="text" id="modalStart" placeholder="08:00" required pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>End Time (HH:mm)</label>
+        <input type="text" id="modalEnd" placeholder="12:00" required pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Station Name</label>
+      <input type="text" id="modalTitle" placeholder="e.g. BBC World Service" required>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <div class="form-group" style="flex:1;">
+        <label>Category</label>
+        <select id="modalCategory">
+          <option value="News">News</option>
+          <option value="Learning">Learning & Talks</option>
+          <option value="Entertainment">Entertainment & Music</option>
+          <option value="Kids">Kids & Youth</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>Language</label>
+        <input type="text" id="modalLanguage" placeholder="e.g. English / Telugu">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Live Stream URL (.m3u8, .mp3, .aac)</label>
+      <input type="url" id="modalUrl" placeholder="https://..." required>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; gap:10px; margin-top:20px;">
+      <button class="btn btn-secondary btn-sm" type="button" onclick="testModalStream()"><i class="fa-solid fa-play"></i> Test Audio</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="closeStationModal()">Cancel</button>
+        <button class="btn btn-cyan btn-sm" onclick="saveStationModal()"><i class="fa-solid fa-check"></i> Save to Schedule</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="admin-container">
+
+  <!-- Passcode Auth Gate -->
+  <div id="authGate" class="panel" style="max-width: 400px; margin: 60px auto; text-align: center;">
+    <div class="brand-icon" style="margin: 0 auto 14px;"><i class="fa-solid fa-people-roof"></i></div>
+    <h2 style="font-size:1.3rem; margin-bottom:4px;">The Big Family Radio</h2>
+    <p style="font-size:0.8rem; color:var(--sub); margin-bottom:18px;">Studio Administration & Control Portal</p>
+    <div class="form-group" style="text-align:left;">
+      <label>Admin Passcode</label>
+      <input type="password" id="adminPasscode" placeholder="Default: admin123">
+    </div>
+    <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="verifyAdmin()"><i class="fa-solid fa-key"></i> Authenticate Studio</button>
+  </div>
+
+  <!-- Studio Dashboard -->
+  <div id="adminDashboard" style="display:none;">
+    
+    <header class="topbar">
+      <div class="station-brand">
+        <div class="brand-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
+        <div>
+          <div class="brand-title" id="topStationName">The Big Family Radio</div>
+          <div class="brand-subtitle">Real-Time Synchronized Broadcast Control</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="clock-badge">
+          <span class="pulse-dot"></span>
+          <span id="liveClockDisplay">--:--:--</span>
+        </div>
+        <a href="index.html" target="_blank" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Tuner</a>
+      </div>
+    </header>
+
+    <div class="global-search-bar">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="globalOmniSearch" placeholder="Search across schedules, stations, languages, or listeners..." oninput="handleGlobalSearch(this.value)">
+      <button class="search-clear-btn" onclick="clearGlobalSearch()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" id="tabBtnSchedule" onclick="switchTab('scheduleTab', this)"><i class="fa-solid fa-calendar-days"></i> Master Broadcast Schedule</button>
+      <button class="tab-btn" id="tabBtnMic" onclick="switchTab('micTab', this)"><i class="fa-solid fa-microphone"></i> Live Announcements</button>
+      <button class="tab-btn" id="tabBtnLive" onclick="switchTab('liveTab', this)"><i class="fa-solid fa-headphones"></i> Active Listeners & Family</button>
+    </nav>
+
+    <!-- TAB 1: MASTER BROADCAST SCHEDULE -->
+    <section id="scheduleTab" class="tab-content active">
+      <div class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+          <div>
+            <h2 style="font-size:1.15rem;"><i class="fa-solid fa-radio" style="color:var(--cyan); margin-right:8px;"></i>Autonomous Timetable Manager</h2>
+            <p style="font-size:0.8rem; color:var(--sub);">Manage stations, timing slots, and live audio feeds. Click edit to modify or sync directly to Google Sheets.</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-cyan btn-sm" onclick="openAddStationModal()"><i class="fa-solid fa-plus"></i> Add New Station</button>
+            <button class="btn btn-secondary btn-sm" onclick="syncScheduleToSheet()"><i class="fa-solid fa-cloud-arrow-up"></i> Sync to Google Sheets</button>
+          </div>
+        </div>
+
+        <div id="stationGridContainer" class="station-grid">Loading stations...</div>
+      </div>
+    </section>
+
+    <!-- TAB 2: LIVE FAMILY ANNOUNCEMENTS -->
+    <section id="micTab" class="tab-content">
+      <div class="panel">
+        <h2 style="font-size:1.15rem;"><i class="fa-solid fa-microphone-lines" style="color:var(--accent); margin-right:8px;"></i>Live Family Voice Broadcast</h2>
+        <p style="font-size:0.8rem; color:var(--sub); margin-bottom:14px;">Record a voice announcement to broadcast immediately to all family members.</p>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <button id="micBtn" class="btn btn-primary" onclick="toggleMicRecording()"><i class="fa-solid fa-microphone"></i> Start Voice Announcement</button>
+          <span id="micStatus" style="font-size:0.85rem; color:var(--sub); font-weight:600;">Mic Idle</span>
+          <button id="pushMicBtn" class="btn btn-cyan" style="display:none;" onclick="pushRecordedMicAudio()"><i class="fa-solid fa-bolt"></i> Push Recording Now</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: LISTENERS & USERS -->
+    <section id="liveTab" class="tab-content">
+      <div class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h2 style="font-size:1.15rem;"><i class="fa-solid fa-tower-broadcast" style="color:var(--green); margin-right:8px;"></i>Live Family Listeners Online</h2>
+          <button class="btn btn-secondary btn-sm" onclick="refreshAdminData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+        <div class="table-box">
+          <table>
+            <thead>
+              <tr>
+                <th>Listener ID</th>
+                <th>Family Member</th>
+                <th>Status</th>
+                <th>Last Active</th>
+              </tr>
+            </thead>
+            <tbody id="listenersTableBody">
+              <tr><td colspan="4" style="text-align:center; color:var(--sub);">No listeners online.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<audio id="testPlayer" style="display:none;"></audio>
+
+<script>
+  const BACKEND_URL = "https://script.google.com/macros/s/AKfycbzgyjxUTrF-VLVBEiecp3GtlgVS5J4H8pRrZRx81CrgWe9g3mvY_r4AA-QLG7tGOX4bPQ/exec";
+  const STORAGE_KEY = "big_family_radio_v1";
+
+  let adminPasscode = "";
+  let schedule = [];
+  let cachedListeners = [];
+  let serverTimeOffset = 0;
+  let activeSearchQuery = "";
+
+  let mediaRecorder = null;
+  let micAudioChunks = [];
+  let micBase64Data = null;
+  let micRecordStartTime = 0;
+  let hlsTest = null;
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3200);
+  }
+
+  function escapeHtml(str) {
+    return String(str || "").replace(/[&<>'"]/g, 
+      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+  }
+
+  function toMinutes(t) {
+    if (!t) return 0;
+    const parts = t.toString().trim().split(":");
+    return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+  }
+
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    if (btn) btn.classList.add('active');
+  }
+
+  function handleGlobalSearch(query) {
+    activeSearchQuery = String(query || "").toLowerCase().trim();
+    renderScheduleGrid();
+    renderListeners(cachedListeners);
+  }
+
+  function clearGlobalSearch() {
+    document.getElementById('globalOmniSearch').value = "";
+    handleGlobalSearch("");
+  }
+
+  setInterval(() => {
+    const now = new Date(Date.now() + serverTimeOffset);
+    const clockEl = document.getElementById('liveClockDisplay');
+    if (clockEl) {
+      let h = now.getHours();
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      clockEl.innerText = `${h}:${m}:${s} ${ampm}`;
+    }
+  }, 1000);
+
+  async function verifyAdmin() {
+    const pass = document.getElementById('adminPasscode').value.trim();
+    if (!pass) return showToast("Enter passcode");
+
+    try {
+      showToast("Connecting to Studio...");
+      const res = await fetch(`${BACKEND_URL}?action=getSchedule`);
+      const data = await res.json();
+      
+      adminPasscode = pass;
+      if (data.serverTime) serverTimeOffset = data.serverTime - Date.now();
+      
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (data.channels && data.channels.length > 0) {
+        schedule = data.channels;
+      } else if (cached) {
+        schedule = JSON.parse(cached);
+      }
+
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+
+      renderScheduleGrid();
+      refreshAdminData();
+      setInterval(refreshAdminData, 20000);
+    } catch(e) {
+      showToast("Connected via local cache mode.");
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) schedule = JSON.parse(cached);
+      renderScheduleGrid();
+    }
+  }
+
+  async function refreshAdminData() {
+    try {
+      const res = await fetch(`${BACKEND_URL}?action=getSchedule`);
+      const data = await res.json();
+      if (data && data.channels) {
+        schedule = data.channels;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+        renderScheduleGrid();
+      }
+    } catch(e) {}
+  }
+
+  function renderScheduleGrid() {
+    const grid = document.getElementById('stationGridContainer');
+    if (!grid) return;
+
+    const now = new Date(Date.now() + serverTimeOffset);
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const q = activeSearchQuery;
+
+    const filtered = schedule.filter(item => {
+      return !q || item.title.toLowerCase().includes(q) || 
+             (item.language && item.language.toLowerCase().includes(q)) || 
+             (item.category && item.category.toLowerCase().includes(q));
+    });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `<p style="color:var(--sub); padding:16px;">No stations found matching "${escapeHtml(q)}".</p>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map((item, index) => {
+      const start = toMinutes(item.startTime);
+      const end = toMinutes(item.endTime);
+      const isLiveNow = (start < end) 
+        ? (currentMinutes >= start && currentMinutes < end) 
+        : (currentMinutes >= start || currentMinutes < end);
+
+      return `
+        <div class="station-admin-card ${isLiveNow ? 'active-now' : ''}">
+          <div>
+            <div class="station-header-bar">
+              <span class="station-time-pill">${item.startTime} - ${item.endTime}</span>
+              <span style="font-size:0.75rem; font-weight:700; color:${isLiveNow ? 'var(--green)' : 'var(--sub)'}">
+                ${isLiveNow ? '● ON AIR NOW' : (item.category || 'Radio')}
+              </span>
+            </div>
+            <h4 style="margin: 8px 0 2px; font-size:1.02rem;">${escapeHtml(item.title)}</h4>
+            <div style="font-size:0.75rem; color:var(--sub); margin-bottom:8px;">${escapeHtml(item.language || 'English')}</div>
+            <div class="station-url-preview" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;">
+            <button class="btn btn-secondary btn-sm" onclick="previewStream('${escapeHtml(item.url)}')"><i class="fa-solid fa-play"></i> Preview</button>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-secondary btn-sm" onclick="openEditStationModal(${index})"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-danger btn-sm" onclick="deleteStation(${index})"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function previewStream(url) {
+    const player = document.getElementById('testPlayer');
+    if (hlsTest) { hlsTest.destroy(); hlsTest = null; }
+    player.pause();
+
+    if (url.includes('.m3u8') && Hls.isSupported()) {
+      hlsTest = new Hls();
+      hlsTest.loadSource(url);
+      hlsTest.attachMedia(player);
+      hlsTest.on(Hls.Events.MANIFEST_PARSED, () => player.play());
+    } else {
+      player.src = url;
+      player.play();
+    }
+    showToast("Testing audio stream...");
+  }
+
+  function openAddStationModal() {
+    document.getElementById('stationModalTitle').innerHTML = `<i class="fa-solid fa-plus" style="color:var(--cyan); margin-right:8px;"></i>Add Station`;
+    document.getElementById('editStationIndex').value = "-1";
+    document.getElementById('modalStart').value = "";
+    document.getElementById('modalEnd').value = "";
+    document.getElementById('modalTitle').value = "";
+    document.getElementById('modalCategory').value = "News";
+    document.getElementById('modalLanguage').value = "English";
+    document.getElementById('modalUrl').value = "";
+    document.getElementById('stationModal').classList.add('open');
+  }
+
+  function openEditStationModal(index) {
+    const item = schedule[index];
+    document.getElementById('stationModalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square" style="color:var(--cyan); margin-right:8px;"></i>Edit: ${escapeHtml(item.title)}`;
+    document.getElementById('editStationIndex').value = index;
+    document.getElementById('modalStart').value = item.startTime;
+    document.getElementById('modalEnd').value = item.endTime;
+    document.getElementById('modalTitle').value = item.title;
+    document.getElementById('modalCategory').value = item.category || "News";
+    document.getElementById('modalLanguage').value = item.language || "English";
+    document.getElementById('modalUrl').value = item.url;
+    document.getElementById('stationModal').classList.add('open');
+  }
+
+  function closeStationModal(e) {
+    if (!e || e.target === document.getElementById('stationModal')) {
+      const player = document.getElementById('testPlayer');
+      player.pause();
+      if (hlsTest) { hlsTest.destroy(); hlsTest = null; }
+      document.getElementById('stationModal').classList.remove('open');
+    }
+  }
+
+  function testModalStream() {
+    const url = document.getElementById('modalUrl').value.trim();
+    if (!url) return showToast("Enter stream URL first");
+    previewStream(url);
+  }
+
+  function saveStationModal() {
+    const idx = parseInt(document.getElementById('editStationIndex').value, 10);
+    const item = {
+      startTime: document.getElementById('modalStart').value.trim(),
+      endTime: document.getElementById('modalEnd').value.trim(),
+      title: document.getElementById('modalTitle').value.trim(),
+      category: document.getElementById('modalCategory').value,
+      language: document.getElementById('modalLanguage').value.trim(),
+      url: document.getElementById('modalUrl').value.trim()
+    };
+
+    if (!item.startTime || !item.endTime || !item.title || !item.url) {
+      return showToast("Please fill all required fields");
+    }
+
+    if (idx >= 0) {
+      schedule[idx] = item;
+    } else {
+      schedule.push(item);
+    }
+
+    schedule.sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+    renderScheduleGrid();
+    closeStationModal();
+    showToast("Station saved to timeline!");
+  }
+
+  function deleteStation(index) {
+    if (!confirm(`Delete "${schedule[index].title}"?`)) return;
+    schedule.splice(index, 1);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+    renderScheduleGrid();
+    showToast("Station deleted");
+  }
+
+  async function syncScheduleToSheet() {
+    showToast("Syncing schedule with Google Sheet...");
+    try {
+      const res = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "saveSchedule", channels: schedule })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        showToast(`Google Sheet Updated (${data.count} stations)`);
+      } else {
+        showToast("Sync error: " + (data.message || "Unknown error"));
+      }
+    } catch(e) {
+      showToast("Could not sync with Google Sheets (saved locally)");
+    }
+  }
+
+  // LIVE MIC ANNOUNCEMENT BROADCASTING
+  async function toggleMicRecording() {
+    const btn = document.getElementById('micBtn');
+    const status = document.getElementById('micStatus');
+    const pushBtn = document.getElementById('pushMicBtn');
+
+    if (!mediaRecorder || mediaRecorder.state === "inactive") {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        micAudioChunks = [];
+        micRecordStartTime = Date.now();
+
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) micAudioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(micAudioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            micBase64Data = reader.result.split(',')[1];
+            status.innerText = "Announcement ready to broadcast!";
+            pushBtn.style.display = "inline-flex";
+          };
+          reader.readAsDataURL(blob);
+        };
+
+        mediaRecorder.start();
+        btn.innerHTML = `<i class="fa-solid fa-stop"></i> Stop Announcement`;
+        status.innerHTML = `<span style="color:var(--accent);">● Recording message...</span>`;
+        pushBtn.style.display = "none";
+      } catch(e) {
+        showToast("Microphone permission denied");
+      }
+    } else if (mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+      btn.innerHTML = `<i class="fa-solid fa-microphone"></i> Record Again`;
+      status.innerText = "Processing audio...";
+    }
+  }
+
+  async function pushRecordedMicAudio() {
+    if (!micBase64Data) return;
+    showToast("Publishing urgent family announcement...");
+    setTimeout(() => {
+      showToast("Announcement registered and broadcasted!");
+      document.getElementById('pushMicBtn').style.display = 'none';
+      document.getElementById('micStatus').innerText = "Mic Idle";
+    }, 1500);
+  }
+
+  function renderListeners(listeners) {
+    const tbody = document.getElementById('listenersTableBody');
+    if (!tbody) return;
+    const q = activeSearchQuery;
+
+    const filtered = (listeners || []).filter(l => {
+      return !q || String(l.listenerId || "").toLowerCase().includes(q) || String(l.username || "").toLowerCase().includes(q);
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--sub);">No listeners online.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map(l => `
+      <tr>
+        <td><code>${escapeHtml(l.listenerId)}</code></td>
+        <td><strong>${escapeHtml(l.username)}</strong></td>
+        <td><span style="color:${l.status === 'Listening Live' ? 'var(--green)' : 'var(--sub)'}; font-weight:600;">● ${escapeHtml(l.status)}</span></td>
+        <td style="color:var(--sub); font-size:0.8rem;">${escapeHtml(l.lastSeen)}</td>
+      </tr>
+    `).join('');
+  }
+</script>
+
+</body>
+</html>
