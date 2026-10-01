@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>The Big Family Radio • Autonomous Scheduler</title>
+  <title>The Big Family Radio • Autonomous Live & Drive Player</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
@@ -14,7 +14,6 @@
       --cyan: #00d2ff;
       --green: #00e676;
       --bg: #090d16;
-      --card-bg: rgba(18, 24, 36, 0.94);
       --speaker-rim: #2d3748;
       --text: #f0f6fc;
       --text-muted: #8b949e;
@@ -72,11 +71,11 @@
       font-weight: 700;
     }
     .badge-live { background: rgba(0, 230, 118, 0.15); border: 1px solid rgba(0, 230, 118, 0.4); color: var(--green); }
+    .badge-drive { background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); color: #ffc107; }
     .badge-listeners { background: rgba(0, 210, 255, 0.15); border: 1px solid rgba(0, 210, 255, 0.4); color: var(--cyan); }
     .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.4s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 
-    /* STEREO RADIO STAGE CABINET */
     #stage {
       flex: 1;
       width: 100%;
@@ -117,7 +116,6 @@
       }
     }
 
-    /* STEREO SPEAKER UNITS */
     .speaker-unit {
       background: radial-gradient(circle, #0e131f 40%, #060910 100%);
       border: 5px solid var(--speaker-rim);
@@ -204,7 +202,6 @@
       transition: width 0.08s ease-out;
     }
 
-    /* CENTER CONSOLE & DSP TUNER */
     #center-console {
       background: rgba(10, 15, 26, 0.9);
       border: 2px solid #334155;
@@ -300,30 +297,6 @@
     .btn-secondary:hover { background: #475569; }
     .btn-cancel { background: #475569; color: #fff; }
 
-    /* EDIT POPUP MODAL */
-    #edit-popup-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.82);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 120;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      padding: 16px;
-    }
-
-    .modal-box {
-      background: #182030;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      width: min(460px, 95vw);
-      padding: 22px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
-    }
-
-    /* TIMETABLE DRAWER */
     #remote-drawer {
       position: fixed;
       top: 0;
@@ -375,6 +348,21 @@
     .station-info h4 { font-size: 0.88rem; margin-bottom: 2px; }
     .station-info span { font-size: 0.72rem; color: var(--text-muted); }
 
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px); z-index: 130; display: none;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #182030;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      width: min(480px, 95vw);
+      padding: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+    }
+
     .input-group {
       display: flex;
       flex-direction: column;
@@ -392,14 +380,6 @@
       outline: none;
     }
 
-    /* ACCOUNT MODAL */
-    #accountModal {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(8px); z-index: 130; display: none;
-      align-items: center; justify-content: center; padding: 16px;
-    }
-    #accountModal.open { display: flex; }
-
     #start-overlay {
       position: fixed; inset: 0; background: #030712;
       display: flex; justify-content: center; align-items: center; z-index: 150;
@@ -415,16 +395,15 @@
 
 <div id="toast" class="toast"></div>
 
-<!-- TOPBAR -->
 <header>
   <div class="brand-group">
     <div class="brand-title">
       <i class="fa-solid fa-people-roof"></i>
       <span>The Big Family Radio</span>
     </div>
-    <div class="badge badge-live">
+    <div class="badge badge-live" id="stream-type-badge">
       <span class="pulse-dot"></span>
-      <span>ON AIR</span>
+      <span id="stream-type-label">LIVE STREAM</span>
     </div>
     <div class="badge badge-listeners">
       <i class="fa-solid fa-headphones"></i>
@@ -433,14 +412,13 @@
   </div>
 
   <div style="display:flex; gap:8px;">
-    <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem;" onclick="openAccountModal()">
-      <i class="fa-solid fa-user"></i>
-      <span id="headerAccountLabel">Login</span>
+    <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.75rem;" onclick="openUploadModal()">
+      <i class="fa-solid fa-cloud-arrow-up" style="color:var(--cyan);"></i>
+      <span>Upload Drive Audio</span>
     </button>
   </div>
 </header>
 
-<!-- STAGE DUAL-SPEAKER HARDWARE DESIGN -->
 <div id="stage">
   <div id="radio-chassis">
     
@@ -474,7 +452,6 @@
         <p id="station-meta">Synchronizing live timeline...</p>
       </div>
 
-      <!-- 6 SOUND DSP MODES -->
       <div class="sound-modes-container">
         <span class="modes-label">DSP SOUND SURROUND MODES</span>
         <div class="modes-pills">
@@ -520,7 +497,7 @@
 </div>
 
 <!-- POPUP EDIT / ADD MODAL -->
-<div id="edit-popup-overlay">
+<div id="edit-popup-overlay" class="modal-overlay">
   <div class="modal-box">
     <h3 id="popup-heading" style="margin-bottom: 14px;">Edit Radio Station</h3>
     <form id="popup-form" onsubmit="handlePopupSubmit(event)">
@@ -538,29 +515,38 @@
       </div>
 
       <div class="input-group">
-        <label>Station Name</label>
-        <input type="text" id="pop-title" placeholder="e.g. BBC World Service" required />
+        <label>Station or Audio Name</label>
+        <input type="text" id="pop-title" placeholder="e.g. Grandma's Bedtime Story" required />
       </div>
 
       <div style="display:flex; gap: 8px;">
         <div class="input-group" style="flex:1;">
-          <label>Category</label>
-          <select id="pop-category">
-            <option value="News">News</option>
-            <option value="Learning">Learning & Talks</option>
-            <option value="Entertainment">Entertainment & Music</option>
-            <option value="Kids">Kids & Youth</option>
+          <label>Source Type</label>
+          <select id="pop-source" onchange="toggleSourceFields(this.value)">
+            <option value="live">Live Web Stream (.m3u8, .mp3)</option>
+            <option value="drive">Google Drive Audio File</option>
           </select>
         </div>
         <div class="input-group" style="flex:1;">
-          <label>Language</label>
-          <input type="text" id="pop-lang" placeholder="e.g. English / Telugu" />
+          <label>Category</label>
+          <select id="pop-category">
+            <option value="Kids">Kids & Stories</option>
+            <option value="News">News</option>
+            <option value="Learning">Learning & Talks</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Drive Audio">Drive Audio</option>
+          </select>
         </div>
       </div>
 
-      <div class="input-group">
-        <label>Stream URL (.mp3, .aac, .m3u8)</label>
-        <input type="url" id="pop-url" placeholder="https://..." required />
+      <div class="input-group" id="group-url">
+        <label>Stream URL (.m3u8, .mp3, .aac)</label>
+        <input type="url" id="pop-url" placeholder="https://..." />
+      </div>
+
+      <div class="input-group" id="group-fileid" style="display:none;">
+        <label>Google Drive File ID</label>
+        <input type="text" id="pop-fileid" placeholder="e.g. 1a2B3c4D5e6F7g..." />
       </div>
 
       <div style="display:flex; gap: 8px; margin-top: 16px;">
@@ -568,6 +554,30 @@
         <button type="button" class="btn btn-cancel" onclick="closePopup()">Cancel</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div id="uploadModal" class="modal-overlay">
+  <div class="modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3><i class="fa-solid fa-cloud-arrow-up" style="color:var(--cyan); margin-right:8px;"></i>Upload Audio to Google Drive</h3>
+      <button class="btn btn-secondary" style="padding:4px 8px;" onclick="closeUploadModal()">✕</button>
+    </div>
+
+    <div class="input-group">
+      <label>Audio Title</label>
+      <input type="text" id="uploadTitle" placeholder="e.g. Evening Rhymes & Stories">
+    </div>
+
+    <div class="input-group">
+      <label>Audio File (MP3, M4A, WAV)</label>
+      <input type="file" id="uploadFile" accept="audio/*">
+    </div>
+
+    <button class="btn btn-primary" id="btnUploadSubmit" style="width:100%; margin-top:10px;" onclick="submitDriveUpload()">
+      Upload & Schedule to Radio
+    </button>
   </div>
 </div>
 
@@ -582,37 +592,6 @@
   </div>
 </div>
 
-<!-- ACCOUNT MODAL -->
-<div id="accountModal" onclick="closeAccountModal(event)">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h3><i class="fa-solid fa-user-circle" style="color:var(--primary); margin-right:8px;"></i>Family Member Portal</h3>
-      <button class="btn btn-secondary" style="padding:4px 8px;" onclick="closeAccountModal()">✕</button>
-    </div>
-
-    <div id="authGuestBox">
-      <div class="input-group">
-        <label>Mobile Number</label>
-        <input type="tel" id="loginMobile" placeholder="e.g. 9876543210">
-      </div>
-      <div class="input-group">
-        <label>Password</label>
-        <input type="password" id="loginPass" placeholder="Enter password">
-      </div>
-      <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn btn-primary" style="flex:1;" onclick="submitLogin()">Sign In</button>
-        <button class="btn btn-secondary" style="flex:1;" onclick="submitRegister()">Register</button>
-      </div>
-    </div>
-
-    <div id="authMemberBox" style="display:none; text-align:center;">
-      <h4 id="profUsername" style="color:var(--cyan); margin-bottom:4px;">Member</h4>
-      <p id="profMobile" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:14px;">+91-0000000000</p>
-      <button class="btn btn-secondary" onclick="logout()">Logout</button>
-    </div>
-  </div>
-</div>
-
 <audio id="radio-core" crossorigin="anonymous" preload="auto"></audio>
 
 <div id="start-overlay">
@@ -622,81 +601,18 @@
 </div>
 
 <script>
-  const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgyjxUTrF-VLVBEiecp3GtlgVS5J4H8pRrZRx81CrgWe9g3mvY_r4AA-QLG7tGOX4bPQ/exec";
-  const STORAGE_KEY = "big_family_radio_v1";
+  const CONFIG_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwb3NX6gCrVxCr3r40YSSs7H25JvLaU_zXsZLOUuxxu2g4tAJy5gPdolXZU4jHso4dzJA/exec";
+  const STORAGE_KEY = "bfr_integrated_schedule_v3";
 
   let listenerId = localStorage.getItem('bfr_listener_id') || 'L_' + Math.random().toString(36).substring(2, 9);
   localStorage.setItem('bfr_listener_id', listenerId);
-
-  const DEFAULT_SCHEDULE = [
-    { startTime: "05:00", endTime: "05:20", title: "Fun Kids UK (Live Radio)", category: "Kids", language: "English", url: "https://radio.canstream.co.uk:8021/live.mp3" },
-    { startTime: "05:20", endTime: "05:40", title: "Radio Mirchi Top 20", category: "Entertainment", language: "Hindi", url: "https://stream.zeno.fm/0r0xa792kwzuv" },
-    { startTime: "05:40", endTime: "06:00", title: "BBC World Service", category: "News", language: "English", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service" },
-    { startTime: "06:00", endTime: "06:20", title: "NPR News 24 Hour", category: "News", language: "English", url: "https://npr-ice.streamguys1.com/live.mp3" },
-    { startTime: "06:20", endTime: "06:40", title: "LBC News London", category: "News", language: "English", url: "https://media-ice.musicradio.com/LBCNewsUKMP3" },
-    { startTime: "06:40", endTime: "07:00", title: "France 24 English Radio", category: "News", language: "English", url: "https://stream.radiofrance.fr/fip/fip.m3u8" },
-    { startTime: "07:00", endTime: "07:20", title: "Times Radio UK", category: "News", language: "English", url: "https://timesradio.wireless.radio/stream" },
-    { startTime: "07:20", endTime: "07:40", title: "WNYC AM (Podcasts & Debate)", category: "Learning", language: "English", url: "https://fm939.wnyc.org/wnycfm-web" },
-    { startTime: "07:40", endTime: "08:00", title: "KQED Public Talks (San Francisco)", category: "Learning", language: "English", url: "https://streams.kqed.org/kqedradio.mp3" },
-    { startTime: "08:00", endTime: "08:20", title: "KEXP Discovery & Education", category: "Learning", language: "English", url: "https://kexp.streamguys1.com/kexp160.aac" },
-    { startTime: "08:20", endTime: "08:40", title: "WBEZ Chicago Public Radio", category: "Learning", language: "English", url: "https://stream.wbez.org/wbez128.mp3" },
-    { startTime: "08:40", endTime: "09:00", title: "Capital FM UK (Global Hits)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/CapitalMP3" },
-    { startTime: "09:00", endTime: "09:20", title: "Heart UK (80s & 90s Hits)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/HeartUKMP3" },
-    { startTime: "09:20", endTime: "09:40", title: "Smooth Radio UK (Relaxing Favorites)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/SmoothUKMP3" },
-    { startTime: "09:40", endTime: "10:00", title: "Classic FM London", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/ClassicFMMP3" },
-    { startTime: "10:00", endTime: "10:20", title: "Radio X UK (Indie Rock)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/RadioXUKMP3" },
-    { startTime: "10:20", endTime: "10:40", title: "Gold Radio UK (Classic Oldies)", category: "Entertainment", language: "English", url: "https://media-ice.musicradio.com/GoldMP3" },
-    { startTime: "10:40", endTime: "11:00", title: "Swiss Classic Radio", category: "Entertainment", language: "Classical", url: "https://stream.srg-ssr.ch/m/rsc_de/mp3_128" },
-    { startTime: "11:00", endTime: "11:20", title: "WQXR Classical New York", category: "Entertainment", language: "English", url: "https://stream.wqxr.org/wqxr-web" },
-    { startTime: "11:20", endTime: "11:40", title: "CNA938 News (Singapore Mediacorp)", category: "News", language: "English", url: "https://mediacorp.rastream.com/cna938" },
-    { startTime: "11:40", endTime: "12:00", title: "NHK World-Japan English", category: "Learning", language: "English", url: "https://nhkworld.webcdn.stream.ne.jp/www11/nhkworld-radio/global/2007545/live.m3u8" },
-    { startTime: "12:00", endTime: "12:20", title: "KBS World Radio English (South Korea)", category: "Learning", language: "English", url: "https://world.kbs.co.kr/live/radio/ch1/playlist.m3u8" },
-    { startTime: "12:20", endTime: "12:40", title: "RTHK Radio 3 English (Hong Kong)", category: "News", language: "English", url: "https://stm.rthk.hk/radio3" },
-    { startTime: "12:40", endTime: "13:00", title: "BFM 89.9 Business & Learning (Malaysia)", category: "Learning", language: "English", url: "https://stream.bfm.my/stream" },
-    { startTime: "13:00", endTime: "13:20", title: "Traxx FM English (RTM Malaysia)", category: "Entertainment", language: "English", url: "https://traxxfm.rtm.gov.my/live" },
-    { startTime: "13:20", endTime: "13:40", title: "Radio Thailand World Service English", category: "News", language: "English", url: "https://radiothai.prd.go.th/live/world/playlist.m3u8" },
-    { startTime: "13:40", endTime: "14:00", title: "DZRJ 810 AM The Voice of the Philippines", category: "News", language: "English", url: "https://icecast.eradioportal.com:8443/dzrj_am" },
-    { startTime: "14:00", endTime: "14:20", title: "Yes 93.3 Pop & Culture (Singapore)", category: "Entertainment", language: "English", url: "https://mediacorp.rastream.com/yes933" },
-    { startTime: "14:20", endTime: "14:40", title: "Al Jazeera English Audio Channel", category: "News", language: "English", url: "https://live-hls-web-aje.getaj.net/AJE/01.m3u8" },
-    { startTime: "14:40", endTime: "15:00", title: "Dubai Eye 103.8 (News & Education)", category: "Learning", language: "English", url: "https://stream.arn.ae/dubaieye.mp3" },
-    { startTime: "15:00", endTime: "15:20", title: "SLBC English National Service (Sri Lanka)", category: "Learning", language: "English", url: "https://stream.zeno.fm/y1q8h55n908uv" },
-    { startTime: "15:20", endTime: "15:40", title: "Radio Taiwan International English", category: "Learning", language: "English", url: "https://stream.rti.org.tw/live/rti-en/playlist.m3u8" },
-    { startTime: "15:40", endTime: "16:00", title: "Gold 905 Mediacorp (Singapore)", category: "Entertainment", language: "English", url: "https://mediacorp.rastream.com/gold905" },
-    { startTime: "16:00", endTime: "16:20", title: "City Plus FM Knowledge & Talks", category: "Learning", language: "English", url: "https://stream.cityplusfm.my/stream" },
-    { startTime: "16:20", endTime: "16:40", title: "TBS e-FM 101.3 English (Seoul)", category: "Learning", language: "English", url: "https://efm.tbs.seoul.kr/live/efm.m3u8" },
-    { startTime: "16:40", endTime: "17:00", title: "Voice of Vietnam International (VOV5)", category: "News", language: "English", url: "https://vov5.vov.gov.vn/live/playlist.m3u8" },
-    { startTime: "17:00", endTime: "17:20", title: "UNESCO World Heritage Radio", category: "Learning", language: "English", url: "https://ice1.somafm.com/missioncontrol-128-mp3" },
-    { startTime: "17:20", endTime: "17:40", title: "TED Talks Audio & Debate Channel", category: "Learning", language: "English", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_fourfm" },
-    { startTime: "17:40", endTime: "18:00", title: "World Nature & Discovery Stream", category: "Learning", language: "English", url: "https://ice1.somafm.com/groovesalad-128-mp3" },
-    { startTime: "18:00", endTime: "18:20", title: "AIR ESD English (External Services Division)", category: "News", language: "English", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/esd/playlist.m3u8" },
-    { startTime: "18:20", endTime: "18:40", title: "AIR National News Live (India)", category: "News", language: "English/Hindi", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/allindianews/playlist.m3u8" },
-    { startTime: "18:40", endTime: "19:00", title: "AIR FM Rainbow India (Western Hits)", category: "Entertainment", language: "English", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/fmrainbow/playlist.m3u8" },
-    { startTime: "19:00", endTime: "19:20", title: "AIR FM Gold English Talks & Classics", category: "Learning", language: "English", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/fmgold/playlist.m3u8" },
-    { startTime: "19:20", endTime: "19:40", title: "IndiEarth Outernational (Indie English India)", category: "Entertainment", language: "English", url: "https://stream.zeno.fm/4vbg657p2zquv" },
-    { startTime: "19:40", endTime: "20:00", title: "AIR Hyderabad Live (Telangana)", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airtelugu/playlist.m3u8" },
-    { startTime: "20:00", endTime: "20:20", title: "Radio City Telugu Live", category: "Entertainment", language: "Telugu", url: "https://prclive4.listen2myradio.com/live.mp3?type=s1&mount=/8136" },
-    { startTime: "20:20", endTime: "20:40", title: "Telugu NRI Live Radio", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/f3wvbbk8v18uv" },
-    { startTime: "20:40", endTime: "21:00", title: "Hungama Telugu Super Hits", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/2w3x84y12reuv" },
-    { startTime: "21:00", endTime: "21:20", title: "AIR Vijayawada Rainbow Live (AP)", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airvijayawada/playlist.m3u8" },
-    { startTime: "21:20", endTime: "21:40", title: "AIR Visakhapatnam Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airvisakhapatnam/playlist.m3u8" },
-    { startTime: "21:40", endTime: "22:00", title: "AIR Warangal Live (Telangana)", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airwarangal/playlist.m3u8" },
-    { startTime: "22:00", endTime: "22:20", title: "AIR Tirupati Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airtirupati/playlist.m3u8" },
-    { startTime: "22:20", endTime: "22:40", title: "AIR Kurnool Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airkurnool/playlist.m3u8" },
-    { startTime: "22:40", endTime: "23:00", title: "AIR Kothagudem Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airkothagudem/playlist.m3u8" },
-    { startTime: "23:00", endTime: "23:20", title: "AIR Nizamabad Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airnizamabad/playlist.m3u8" },
-    { startTime: "23:20", endTime: "23:40", title: "AIR Raagam Carnatic Classical Live", category: "Entertainment", language: "Telugu/Sanskrit", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airragam/playlist.m3u8" },
-    { startTime: "23:40", endTime: "00:00", title: "Bhakti Tarangini Telugu Radio", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/n56s4b374zuvv" },
-    { startTime: "00:00", endTime: "02:30", title: "Telugu One Radio TORi Live", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/s4k8qfv2m4zuv" },
-    { startTime: "02:30", endTime: "05:00", title: "Telugu Christian Fellowship Radio", category: "Entertainment", language: "Telugu", url: "https://stream.zeno.fm/4wvqq77y2reuv" }
-  ];
 
   let schedule = [];
   let activeChannel = null;
   let manualOverride = false;
   let hlsInstance = null;
-  let currentUser = JSON.parse(localStorage.getItem('bfr_user') || 'null');
+  const audioCache = {};
 
-  // Stereo Audio Context & DSP Engine
   let audioCtx, audioSource, splitterNode, analyserL, analyserR, dataL, dataR;
   let dspBassFilter, dspMidFilter, dspGain;
   let currentSoundMode = "2.0";
@@ -705,9 +621,12 @@
   const stationTitleEl = document.getElementById("station-title");
   const stationMetaEl = document.getElementById("station-meta");
   const streamStatusEl = document.getElementById("stream-status");
+  const streamTypeBadge = document.getElementById("stream-type-badge");
+  const streamTypeLabel = document.getElementById("stream-type-label");
   const remoteDrawer = document.getElementById("remote-drawer");
   const remoteList = document.getElementById("remote-station-list");
   const popupOverlay = document.getElementById("edit-popup-overlay");
+  const uploadModal = document.getElementById("uploadModal");
 
   function showToast(msg) {
     const t = document.getElementById('toast');
@@ -724,7 +643,12 @@
         if (schedule.length > 0) return;
       } catch (e) {}
     }
-    schedule = [...DEFAULT_SCHEDULE];
+    schedule = [
+      { startTime: "05:00", endTime: "07:00", title: "Fun Kids UK (Live Radio)", category: "Kids", language: "English", url: "https://radio.canstream.co.uk:8021/live.mp3", sourceType: "live" },
+      { startTime: "07:00", endTime: "09:00", title: "BBC World Service", category: "News", language: "English", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service", sourceType: "live" },
+      { startTime: "09:00", endTime: "12:00", title: "Radio Mirchi Top 20", category: "Entertainment", language: "Hindi", url: "https://stream.zeno.fm/0r0xa792kwzuv", sourceType: "live" },
+      { startTime: "12:00", endTime: "15:00", title: "AIR Hyderabad Live", category: "Entertainment", language: "Telugu", url: "https://air.pc.cdn.bitgravity.com/air/live/pcradio/pub/airtelugu/playlist.m3u8", sourceType: "live" }
+    ];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
   }
 
@@ -752,12 +676,10 @@
       dspBassFilter = audioCtx.createBiquadFilter();
       dspBassFilter.type = "lowshelf";
       dspBassFilter.frequency.value = 180;
-      dspBassFilter.gain.value = 0;
 
       dspMidFilter = audioCtx.createBiquadFilter();
       dspMidFilter.type = "peaking";
       dspMidFilter.frequency.value = 2500;
-      dspMidFilter.gain.value = 0;
 
       dspGain = audioCtx.createGain();
       dspGain.gain.value = 1.0;
@@ -916,7 +838,23 @@
     }) || schedule[0];
   }
 
-  function playStream(station, isManual = false) {
+  // Resolves Google Drive audio through Apps Script proxy
+  async function resolveDriveAudio(fileId) {
+    if (audioCache[fileId]) return audioCache[fileId];
+    try {
+      const res = await fetch(`${CONFIG_APPS_SCRIPT_URL}?action=streamAudio&fileId=${encodeURIComponent(fileId)}`);
+      const data = await res.json();
+      if (data.success && data.dataUri) {
+        audioCache[fileId] = data.dataUri;
+        return data.dataUri;
+      }
+    } catch (e) {
+      console.warn("Proxy fetch error:", e);
+    }
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
+
+  async function playStream(station, isManual = false) {
     if (!station) return;
     activeChannel = station;
     manualOverride = isManual;
@@ -925,6 +863,16 @@
     stationMetaEl.innerText = `${station.startTime} - ${station.endTime} | ${station.category || "General"} | ${station.language || "English"}`;
     streamStatusEl.innerText = isManual ? "MANUAL OVERRIDE" : "AUTOPILOT SCHEDULER";
 
+    const isDrive = station.sourceType === "drive" || Boolean(station.fileId);
+
+    if (isDrive) {
+      streamTypeBadge.className = "badge badge-drive";
+      streamTypeLabel.innerText = "GOOGLE DRIVE AUDIO";
+    } else {
+      streamTypeBadge.className = "badge badge-live";
+      streamTypeLabel.innerText = "LIVE WEB STREAM";
+    }
+
     if (hlsInstance) {
       hlsInstance.destroy();
       hlsInstance = null;
@@ -932,14 +880,37 @@
     audio.pause();
     audio.removeAttribute("src");
 
-    if (station.url.includes(".m3u8") && Hls.isSupported()) {
-      hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
-      hlsInstance.loadSource(station.url);
-      hlsInstance.attachMedia(audio);
-      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => audio.play().catch(() => {}));
-    } else {
-      audio.src = station.url;
-      audio.play().catch(e => console.warn("Playback blocked:", e));
+    // 1. Play Drive Audio File
+    if (isDrive) {
+      stationTitleEl.innerText = "Loading Drive Audio: " + station.title;
+      const audioUri = await resolveDriveAudio(station.fileId);
+      audio.src = audioUri;
+
+      // Calculate seek offset relative to when the radio slot started
+      const now = new Date();
+      const slotStartMinutes = toMinutes(station.startTime);
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const elapsedSeconds = ((currentMinutes - slotStartMinutes) * 60) + now.getSeconds();
+
+      audio.onloadedmetadata = () => {
+        if (!isManual && elapsedSeconds > 0 && elapsedSeconds < audio.duration) {
+          audio.currentTime = elapsedSeconds;
+        }
+        audio.play().catch(e => console.warn(e));
+      };
+      audio.load();
+    }
+    // 2. Play Live Stream (.m3u8, .mp3)
+    else {
+      if (station.url.includes(".m3u8") && Hls.isSupported()) {
+        hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hlsInstance.loadSource(station.url);
+        hlsInstance.attachMedia(audio);
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => audio.play().catch(() => {}));
+      } else {
+        audio.src = station.url;
+        audio.play().catch(e => console.warn("Playback blocked:", e));
+      }
     }
 
     renderRemoteList();
@@ -949,44 +920,59 @@
   function evaluateSchedule() {
     if (manualOverride) return;
     const scheduled = getScheduledChannel();
-    if (scheduled && (!activeChannel || activeChannel.url !== scheduled.url)) {
+    if (scheduled && (!activeChannel || activeChannel.title !== scheduled.title)) {
       playStream(scheduled, false);
     }
   }
 
-  // MODAL WORKFLOWS
+  function toggleSourceFields(val) {
+    document.getElementById("group-url").style.display = val === "live" ? "flex" : "none";
+    document.getElementById("group-fileid").style.display = val === "drive" ? "flex" : "none";
+  }
+
   function openAddPopup() {
-    document.getElementById("popup-heading").innerText = "Add Radio Station";
+    document.getElementById("popup-heading").innerText = "Add Radio Station or Audio";
     document.getElementById("pop-index").value = "-1";
     document.getElementById("popup-form").reset();
-    popupOverlay.style.display = "flex";
+    toggleSourceFields("live");
+    popupOverlay.classList.add("open");
   }
 
   function openEditPopup(index) {
     const station = schedule[index];
+    const isDrive = station.sourceType === "drive" || Boolean(station.fileId);
+
     document.getElementById("popup-heading").innerText = `Edit: ${station.title}`;
     document.getElementById("pop-index").value = index;
     document.getElementById("pop-start").value = station.startTime;
     document.getElementById("pop-end").value = station.endTime;
     document.getElementById("pop-title").value = station.title;
-    document.getElementById("pop-category").value = station.category || "News";
+    document.getElementById("pop-category").value = station.category || "General";
     document.getElementById("pop-lang").value = station.language || "English";
-    document.getElementById("pop-url").value = station.url;
-    popupOverlay.style.display = "flex";
+    document.getElementById("pop-source").value = isDrive ? "drive" : "live";
+    document.getElementById("pop-url").value = station.url || "";
+    document.getElementById("pop-fileid").value = station.fileId || "";
+
+    toggleSourceFields(isDrive ? "drive" : "live");
+    popupOverlay.classList.add("open");
   }
 
-  function closePopup() { popupOverlay.style.display = "none"; }
+  function closePopup() { popupOverlay.classList.remove("open"); }
 
   function handlePopupSubmit(e) {
     e.preventDefault();
     const editIdx = parseInt(document.getElementById("pop-index").value, 10);
+    const sourceType = document.getElementById("pop-source").value;
+
     const stationData = {
       startTime: document.getElementById("pop-start").value.trim(),
       endTime: document.getElementById("pop-end").value.trim(),
       title: document.getElementById("pop-title").value.trim(),
       category: document.getElementById("pop-category").value,
       language: document.getElementById("pop-lang").value.trim(),
-      url: document.getElementById("pop-url").value.trim()
+      sourceType: sourceType,
+      url: sourceType === "live" ? document.getElementById("pop-url").value.trim() : "",
+      fileId: sourceType === "drive" ? document.getElementById("pop-fileid").value.trim() : ""
     };
 
     if (editIdx >= 0) {
@@ -1013,12 +999,13 @@
   function renderRemoteList() {
     remoteList.innerHTML = "";
     schedule.forEach((item, index) => {
+      const isDrive = item.sourceType === "drive" || Boolean(item.fileId);
       const el = document.createElement("div");
-      el.className = `station-item ${activeChannel && activeChannel.url === item.url ? "active" : ""}`;
+      el.className = `station-item ${activeChannel && activeChannel.title === item.title ? "active" : ""}`;
       el.innerHTML = `
         <div class="station-info" style="flex:1;">
           <h4>${item.title}</h4>
-          <span>${item.startTime} - ${item.endTime} • ${item.category || ""} • ${item.language || ""}</span>
+          <span>${item.startTime} - ${item.endTime} • [${isDrive ? 'DRIVE FILE' : 'LIVE'}] • ${item.language || ""}</span>
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="event.stopPropagation(); openEditPopup(${index})">✏ Edit</button>
@@ -1054,7 +1041,7 @@
   async function loadScheduleFromSheet() {
     if (!CONFIG_APPS_SCRIPT_URL) return;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     try {
       const res = await fetch(`${CONFIG_APPS_SCRIPT_URL}?action=getSchedule`, { signal: controller.signal });
@@ -1068,88 +1055,54 @@
     } catch (err) {}
   }
 
-  // FAMILY ACCOUNT & HEARTBEAT
-  function openAccountModal() { document.getElementById('accountModal').classList.add('open'); }
-  function closeAccountModal(e) {
-    if (!e || e.target === document.getElementById('accountModal')) {
-      document.getElementById('accountModal').classList.remove('open');
-    }
-  }
+  // Upload Audio directly to Google Drive
+  function openUploadModal() { uploadModal.classList.add("open"); }
+  function closeUploadModal() { uploadModal.classList.remove("open"); }
 
-  function renderAuth() {
-    const g = document.getElementById('authGuestBox');
-    const m = document.getElementById('authMemberBox');
-    const lbl = document.getElementById('headerAccountLabel');
+  async function submitDriveUpload() {
+    const fileInput = document.getElementById("uploadFile");
+    const titleInput = document.getElementById("uploadTitle");
+    const btn = document.getElementById("btnUploadSubmit");
 
-    if (!currentUser) {
-      g.style.display = 'block'; m.style.display = 'none';
-      lbl.innerText = "Login";
-    } else {
-      g.style.display = 'none'; m.style.display = 'block';
-      lbl.innerText = currentUser.username;
-      document.getElementById('profUsername').innerText = currentUser.username;
-      document.getElementById('profMobile').innerText = currentUser.mobile;
-    }
-  }
+    if (!fileInput.files || !fileInput.files[0]) return showToast("Select an audio file");
+    const file = fileInput.files[0];
+    const title = titleInput.value.trim() || file.name.replace(/\.[^/.]+$/, "");
 
-  async function submitLogin() {
-    const mobile = document.getElementById('loginMobile').value.trim();
-    const password = document.getElementById('loginPass').value.trim();
-    if (!mobile || !password) return showToast("Enter credentials");
+    btn.disabled = true;
+    btn.innerText = "Uploading to Google Drive...";
 
-    try {
-      const res = await fetch(CONFIG_APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "login", mobile, password })
-      });
-      const d = await res.json();
-      if (d.success) {
-        currentUser = d.user;
-        localStorage.setItem('bfr_user', JSON.stringify(currentUser));
-        renderAuth();
-        closeAccountModal();
-        showToast("Welcome " + currentUser.username);
-      } else {
-        showToast(d.message || "Login failed");
+    const reader = new FileReader();
+    reader.onload = async function() {
+      const base64Data = reader.result.split(',')[1];
+      try {
+        const res = await fetch(CONFIG_APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "uploadDriveAudio",
+            title,
+            fileName: file.name,
+            mimeType: file.type || "audio/mpeg",
+            base64File: base64Data
+          })
+        });
+        const d = await res.json();
+        btn.disabled = false;
+        btn.innerText = "Upload & Schedule to Radio";
+        if (d.success) {
+          showToast("Uploaded and integrated into schedule!");
+          closeUploadModal();
+          loadScheduleFromSheet();
+        } else {
+          showToast(d.message || "Upload failed");
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerText = "Upload & Schedule to Radio";
+        showToast("Error connecting to Drive server");
       }
-    } catch (e) {
-      showToast("Authentication server offline");
-    }
-  }
-
-  async function submitRegister() {
-    const mobile = document.getElementById('loginMobile').value.trim();
-    const password = document.getElementById('loginPass').value.trim();
-    const username = prompt("Enter your Name for Family Radio:");
-    if (!username || !mobile || !password) return;
-
-    try {
-      const res = await fetch(CONFIG_APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "register", username, mobile, password })
-      });
-      const d = await res.json();
-      if (d.success) {
-        currentUser = d.user;
-        localStorage.setItem('bfr_user', JSON.stringify(currentUser));
-        renderAuth();
-        closeAccountModal();
-        showToast("Registered successfully!");
-      } else {
-        showToast(d.message || "Registration failed");
-      }
-    } catch (e) {
-      showToast("Server offline");
-    }
-  }
-
-  function logout() {
-    currentUser = null;
-    localStorage.removeItem('bfr_user');
-    renderAuth();
-    showToast("Logged out");
+    };
+    reader.readAsDataURL(file);
   }
 
   async function sendHeartbeat() {
@@ -1160,7 +1113,7 @@
         body: JSON.stringify({
           action: "heartbeat",
           listenerId,
-          username: currentUser ? currentUser.username : "Family Guest",
+          username: "Family Listener",
           isPlaying: !audio.paused
         })
       });
@@ -1171,7 +1124,7 @@
     } catch(e) {}
   }
 
-  // APP INITIALIZATION
+  // INITIALIZATION
   document.getElementById("init-btn").addEventListener("click", () => {
     document.getElementById("start-overlay").style.display = "none";
 
@@ -1183,7 +1136,6 @@
 
     initializeScheduleData();
     initStereoAudioEngine();
-    renderAuth();
 
     if (audioCtx && audioCtx.state === "suspended") {
       audioCtx.resume().catch(() => {});

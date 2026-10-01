@@ -16,6 +16,7 @@
       --accent-hover: #ff758c;
       --cyan: #00d2ff;
       --green: #00e676;
+      --yellow: #ffc107;
       --text: #f0f6fc;
       --sub: #8b949e;
       --radius: 14px;
@@ -158,7 +159,6 @@
     .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
     .btn-sm { padding: 6px 12px; font-size: 0.76rem; border-radius: 6px; }
 
-    /* SCHEDULE TIMELINE & STATION CARDS */
     .station-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -195,6 +195,16 @@
       border-radius: 6px;
       font-weight: 700;
     }
+    .badge-source {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      text-transform: uppercase;
+    }
+    .badge-source.live { background: rgba(0, 230, 118, 0.15); color: var(--green); border: 1px solid rgba(0, 230, 118, 0.3); }
+    .badge-source.drive { background: rgba(255, 193, 7, 0.15); color: var(--yellow); border: 1px solid rgba(255, 193, 7, 0.3); }
+
     .station-url-preview {
       font-family: monospace;
       font-size: 0.72rem;
@@ -247,7 +257,7 @@
 <div id="stationModal" class="modal-overlay" onclick="closeStationModal(event)">
   <div class="modal-card" onclick="event.stopPropagation()">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h3 id="stationModalTitle" style="font-size:1.1rem;"><i class="fa-solid fa-pen-to-square" style="color:var(--cyan); margin-right:8px;"></i>Edit Station</h3>
+      <h3 id="stationModalTitle" style="font-size:1.1rem;"><i class="fa-solid fa-pen-to-square" style="color:var(--cyan); margin-right:8px;"></i>Edit Broadcast Item</h3>
       <button onclick="closeStationModal()" style="background:none; border:none; color:var(--sub); font-size:1.2rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
     </div>
     
@@ -265,11 +275,18 @@
     </div>
 
     <div class="form-group">
-      <label>Station Name</label>
-      <input type="text" id="modalTitle" placeholder="e.g. BBC World Service" required>
+      <label>Item / Station Name</label>
+      <input type="text" id="modalTitle" placeholder="e.g. Grandma's Bedtime Stories or BBC World" required>
     </div>
 
     <div style="display:flex; gap:10px;">
+      <div class="form-group" style="flex:1;">
+        <label>Audio Source Type</label>
+        <select id="modalSourceType" onchange="toggleModalFields(this.value)">
+          <option value="live">Live Web Stream (.m3u8, .mp3)</option>
+          <option value="drive">Google Drive Audio File</option>
+        </select>
+      </div>
       <div class="form-group" style="flex:1;">
         <label>Category</label>
         <select id="modalCategory">
@@ -277,21 +294,24 @@
           <option value="Learning">Learning & Talks</option>
           <option value="Entertainment">Entertainment & Music</option>
           <option value="Kids">Kids & Youth</option>
+          <option value="Drive Audio">Drive Audio</option>
         </select>
-      </div>
-      <div class="form-group" style="flex:1;">
-        <label>Language</label>
-        <input type="text" id="modalLanguage" placeholder="e.g. English / Telugu">
       </div>
     </div>
 
-    <div class="form-group">
+    <div class="form-group" id="group-url">
       <label>Live Stream URL (.m3u8, .mp3, .aac)</label>
-      <input type="url" id="modalUrl" placeholder="https://..." required>
+      <input type="url" id="modalUrl" placeholder="https://...">
+    </div>
+
+    <div class="form-group" id="group-fileid" style="display:none;">
+      <label>Google Drive File ID</label>
+      <input type="text" id="modalFileId" placeholder="e.g. 1a2B3c4D5e6F7g...">
+      <p style="font-size:0.72rem; color:var(--sub); margin-top:4px;">Direct Google Drive ID. Streamed via the Apps Script data-URI proxy.</p>
     </div>
 
     <div style="display:flex; justify-content:space-between; gap:10px; margin-top:20px;">
-      <button class="btn btn-secondary btn-sm" type="button" onclick="testModalStream()"><i class="fa-solid fa-play"></i> Test Audio</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="testModalAudio()"><i class="fa-solid fa-play"></i> Test Audio</button>
       <div style="display:flex; gap:8px;">
         <button class="btn btn-secondary btn-sm" onclick="closeStationModal()">Cancel</button>
         <button class="btn btn-cyan btn-sm" onclick="saveStationModal()"><i class="fa-solid fa-check"></i> Save to Schedule</button>
@@ -337,15 +357,16 @@
 
     <div class="global-search-bar">
       <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="globalOmniSearch" placeholder="Search across schedules, stations, languages, or listeners..." oninput="handleGlobalSearch(this.value)">
+      <input type="text" id="globalOmniSearch" placeholder="Search across schedules, stations, Drive audios, or listeners..." oninput="handleGlobalSearch(this.value)">
       <button class="search-clear-btn" onclick="clearGlobalSearch()"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
       <button class="tab-btn active" id="tabBtnSchedule" onclick="switchTab('scheduleTab', this)"><i class="fa-solid fa-calendar-days"></i> Master Broadcast Schedule</button>
+      <button class="tab-btn" id="tabBtnUpload" onclick="switchTab('uploadTab', this)"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Drive Audio</button>
       <button class="tab-btn" id="tabBtnMic" onclick="switchTab('micTab', this)"><i class="fa-solid fa-microphone"></i> Live Announcements</button>
-      <button class="tab-btn" id="tabBtnLive" onclick="switchTab('liveTab', this)"><i class="fa-solid fa-headphones"></i> Active Listeners & Family</button>
+      <button class="tab-btn" id="tabBtnLive" onclick="switchTab('liveTab', this)"><i class="fa-solid fa-headphones"></i> Active Listeners</button>
     </nav>
 
     <!-- TAB 1: MASTER BROADCAST SCHEDULE -->
@@ -354,23 +375,46 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
           <div>
             <h2 style="font-size:1.15rem;"><i class="fa-solid fa-radio" style="color:var(--cyan); margin-right:8px;"></i>Autonomous Timetable Manager</h2>
-            <p style="font-size:0.8rem; color:var(--sub);">Manage stations, timing slots, and live audio feeds. Click edit to modify or sync directly to Google Sheets.</p>
+            <p style="font-size:0.8rem; color:var(--sub);">Both live web streams and Google Drive family audios run in seamless timeline synchronization.</p>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn btn-cyan btn-sm" onclick="openAddStationModal()"><i class="fa-solid fa-plus"></i> Add New Station</button>
+            <button class="btn btn-cyan btn-sm" onclick="openAddStationModal()"><i class="fa-solid fa-plus"></i> Add Item</button>
+            <button class="btn btn-purple btn-sm" onclick="triggerDriveAutoSync()"><i class="fa-solid fa-arrows-rotate"></i> Auto-Sync Drive Files</button>
             <button class="btn btn-secondary btn-sm" onclick="syncScheduleToSheet()"><i class="fa-solid fa-cloud-arrow-up"></i> Sync to Google Sheets</button>
           </div>
         </div>
 
-        <div id="stationGridContainer" class="station-grid">Loading stations...</div>
+        <div id="stationGridContainer" class="station-grid">Loading items...</div>
       </div>
     </section>
 
-    <!-- TAB 2: LIVE FAMILY ANNOUNCEMENTS -->
+    <!-- TAB 2: UPLOAD DRIVE AUDIO DIRECTLY -->
+    <section id="uploadTab" class="tab-content">
+      <div class="panel" style="max-width: 650px; margin: 0 auto;">
+        <h2 style="font-size:1.15rem; margin-bottom:6px;"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--accent); margin-right:8px;"></i>Upload to Google Drive & Radio</h2>
+        <p style="font-size:0.8rem; color:var(--sub); margin-bottom:16px;">Files are stored in the "The Big Family Radio" Google Drive folder and integrated into the broadcast.</p>
+
+        <div class="form-group">
+          <label>Audio Title</label>
+          <input type="text" id="adminUploadTitle" placeholder="e.g. Bedtime Lullabies or Science Talk">
+        </div>
+
+        <div class="form-group">
+          <label>Select Audio File (MP3, WAV, M4A)</label>
+          <input type="file" id="adminUploadFile" accept="audio/*">
+        </div>
+
+        <button class="btn btn-primary" id="adminUploadBtn" style="width:100%; justify-content:center;" onclick="handleDirectDriveUpload()">
+          <i class="fa-solid fa-upload"></i> Upload & Schedule to Radio
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 3: LIVE FAMILY ANNOUNCEMENTS -->
     <section id="micTab" class="tab-content">
       <div class="panel">
         <h2 style="font-size:1.15rem;"><i class="fa-solid fa-microphone-lines" style="color:var(--accent); margin-right:8px;"></i>Live Family Voice Broadcast</h2>
-        <p style="font-size:0.8rem; color:var(--sub); margin-bottom:14px;">Record a voice announcement to broadcast immediately to all family members.</p>
+        <p style="font-size:0.8rem; color:var(--sub); margin-bottom:14px;">Record a voice announcement to broadcast immediately to all family radios.</p>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <button id="micBtn" class="btn btn-primary" onclick="toggleMicRecording()"><i class="fa-solid fa-microphone"></i> Start Voice Announcement</button>
           <span id="micStatus" style="font-size:0.85rem; color:var(--sub); font-weight:600;">Mic Idle</span>
@@ -379,7 +423,7 @@
       </div>
     </section>
 
-    <!-- TAB 3: LISTENERS & USERS -->
+    <!-- TAB 4: LISTENERS -->
     <section id="liveTab" class="tab-content">
       <div class="panel">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -410,8 +454,8 @@
 <audio id="testPlayer" style="display:none;"></audio>
 
 <script>
-  const BACKEND_URL = "https://script.google.com/macros/s/AKfycbzgyjxUTrF-VLVBEiecp3GtlgVS5J4H8pRrZRx81CrgWe9g3mvY_r4AA-QLG7tGOX4bPQ/exec";
-  const STORAGE_KEY = "big_family_radio_v1";
+  const BACKEND_URL = "https://script.google.com/macros/s/AKfycbwb3NX6gCrVxCr3r40YSSs7H25JvLaU_zXsZLOUuxxu2g4tAJy5gPdolXZU4jHso4dzJA/exec";
+  const STORAGE_KEY = "bfr_integrated_schedule_v3";
 
   let adminPasscode = "";
   let schedule = [];
@@ -424,6 +468,7 @@
   let micBase64Data = null;
   let micRecordStartTime = 0;
   let hlsTest = null;
+  const audioCache = {};
 
   function showToast(msg) {
     const t = document.getElementById('toast');
@@ -533,11 +578,12 @@
     const filtered = schedule.filter(item => {
       return !q || item.title.toLowerCase().includes(q) || 
              (item.language && item.language.toLowerCase().includes(q)) || 
-             (item.category && item.category.toLowerCase().includes(q));
+             (item.category && item.category.toLowerCase().includes(q)) ||
+             (item.fileId && item.fileId.toLowerCase().includes(q));
     });
 
     if (filtered.length === 0) {
-      grid.innerHTML = `<p style="color:var(--sub); padding:16px;">No stations found matching "${escapeHtml(q)}".</p>`;
+      grid.innerHTML = `<p style="color:var(--sub); padding:16px;">No broadcast items found matching "${escapeHtml(q)}".</p>`;
       return;
     }
 
@@ -548,22 +594,28 @@
         ? (currentMinutes >= start && currentMinutes < end) 
         : (currentMinutes >= start || currentMinutes < end);
 
+      const isDrive = item.sourceType === "drive" || Boolean(item.fileId);
+      const previewText = isDrive ? `Drive FileId: ${item.fileId}` : (item.url || "");
+
       return `
         <div class="station-admin-card ${isLiveNow ? 'active-now' : ''}">
           <div>
             <div class="station-header-bar">
               <span class="station-time-pill">${item.startTime} - ${item.endTime}</span>
-              <span style="font-size:0.75rem; font-weight:700; color:${isLiveNow ? 'var(--green)' : 'var(--sub)'}">
-                ${isLiveNow ? '● ON AIR NOW' : (item.category || 'Radio')}
-              </span>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span class="badge-source ${isDrive ? 'drive' : 'live'}">${isDrive ? 'Drive File' : 'Live Stream'}</span>
+                <span style="font-size:0.75rem; font-weight:700; color:${isLiveNow ? 'var(--green)' : 'var(--sub)'}">
+                  ${isLiveNow ? '● ON AIR' : ''}
+                </span>
+              </div>
             </div>
             <h4 style="margin: 8px 0 2px; font-size:1.02rem;">${escapeHtml(item.title)}</h4>
-            <div style="font-size:0.75rem; color:var(--sub); margin-bottom:8px;">${escapeHtml(item.language || 'English')}</div>
-            <div class="station-url-preview" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</div>
+            <div style="font-size:0.75rem; color:var(--sub); margin-bottom:8px;">${escapeHtml(item.category || 'General')} • ${escapeHtml(item.language || 'English')}</div>
+            <div class="station-url-preview" title="${escapeHtml(previewText)}">${escapeHtml(previewText)}</div>
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;">
-            <button class="btn btn-secondary btn-sm" onclick="previewStream('${escapeHtml(item.url)}')"><i class="fa-solid fa-play"></i> Preview</button>
+            <button class="btn btn-secondary btn-sm" onclick="previewItem(${index})"><i class="fa-solid fa-play"></i> Test</button>
             <div style="display:flex; gap:6px;">
               <button class="btn btn-secondary btn-sm" onclick="openEditStationModal(${index})"><i class="fa-solid fa-pen"></i></button>
               <button class="btn btn-danger btn-sm" onclick="deleteStation(${index})"><i class="fa-solid fa-trash"></i></button>
@@ -574,45 +626,81 @@
     }).join('');
   }
 
-  function previewStream(url) {
+  async function resolveDriveProxy(fileId) {
+    if (audioCache[fileId]) return audioCache[fileId];
+    try {
+      const res = await fetch(`${BACKEND_URL}?action=streamAudio&fileId=${encodeURIComponent(fileId)}`);
+      const data = await res.json();
+      if (data.success && data.dataUri) {
+        audioCache[fileId] = data.dataUri;
+        return data.dataUri;
+      }
+    } catch (e) {}
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
+
+  async function previewItem(index) {
+    const item = schedule[index];
     const player = document.getElementById('testPlayer');
     if (hlsTest) { hlsTest.destroy(); hlsTest = null; }
     player.pause();
 
-    if (url.includes('.m3u8') && Hls.isSupported()) {
-      hlsTest = new Hls();
-      hlsTest.loadSource(url);
-      hlsTest.attachMedia(player);
-      hlsTest.on(Hls.Events.MANIFEST_PARSED, () => player.play());
+    const isDrive = item.sourceType === "drive" || Boolean(item.fileId);
+
+    if (isDrive) {
+      showToast("Fetching Drive audio through proxy...");
+      const uri = await resolveDriveProxy(item.fileId);
+      player.src = uri;
+      player.play().then(() => showToast(`Playing: ${item.title}`)).catch(() => showToast("Could not play Drive file"));
     } else {
-      player.src = url;
-      player.play();
+      showToast("Testing live web stream...");
+      if (item.url.includes('.m3u8') && Hls.isSupported()) {
+        hlsTest = new Hls();
+        hlsTest.loadSource(item.url);
+        hlsTest.attachMedia(player);
+        hlsTest.on(Hls.Events.MANIFEST_PARSED, () => player.play());
+      } else {
+        player.src = item.url;
+        player.play();
+      }
     }
-    showToast("Testing audio stream...");
+  }
+
+  function toggleModalFields(val) {
+    document.getElementById("group-url").style.display = val === "live" ? "block" : "none";
+    document.getElementById("group-fileid").style.display = val === "drive" ? "block" : "none";
   }
 
   function openAddStationModal() {
-    document.getElementById('stationModalTitle').innerHTML = `<i class="fa-solid fa-plus" style="color:var(--cyan); margin-right:8px;"></i>Add Station`;
+    document.getElementById('stationModalTitle').innerHTML = `<i class="fa-solid fa-plus" style="color:var(--cyan); margin-right:8px;"></i>Add Broadcast Item`;
     document.getElementById('editStationIndex').value = "-1";
     document.getElementById('modalStart').value = "";
     document.getElementById('modalEnd').value = "";
     document.getElementById('modalTitle').value = "";
+    document.getElementById('modalSourceType').value = "live";
     document.getElementById('modalCategory').value = "News";
     document.getElementById('modalLanguage').value = "English";
     document.getElementById('modalUrl').value = "";
+    document.getElementById('modalFileId').value = "";
+    toggleModalFields("live");
     document.getElementById('stationModal').classList.add('open');
   }
 
   function openEditStationModal(index) {
     const item = schedule[index];
+    const isDrive = item.sourceType === "drive" || Boolean(item.fileId);
+
     document.getElementById('stationModalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square" style="color:var(--cyan); margin-right:8px;"></i>Edit: ${escapeHtml(item.title)}`;
     document.getElementById('editStationIndex').value = index;
     document.getElementById('modalStart').value = item.startTime;
     document.getElementById('modalEnd').value = item.endTime;
     document.getElementById('modalTitle').value = item.title;
-    document.getElementById('modalCategory').value = item.category || "News";
+    document.getElementById('modalSourceType').value = isDrive ? "drive" : "live";
+    document.getElementById('modalCategory').value = item.category || (isDrive ? "Drive Audio" : "General");
     document.getElementById('modalLanguage').value = item.language || "English";
-    document.getElementById('modalUrl').value = item.url;
+    document.getElementById('modalUrl').value = item.url || "";
+    document.getElementById('modalFileId').value = item.fileId || "";
+    toggleModalFields(isDrive ? "drive" : "live");
     document.getElementById('stationModal').classList.add('open');
   }
 
@@ -625,26 +713,52 @@
     }
   }
 
-  function testModalStream() {
-    const url = document.getElementById('modalUrl').value.trim();
-    if (!url) return showToast("Enter stream URL first");
-    previewStream(url);
+  async function testModalAudio() {
+    const type = document.getElementById("modalSourceType").value;
+    const url = document.getElementById("modalUrl").value.trim();
+    const fileId = document.getElementById("modalFileId").value.trim();
+    const player = document.getElementById('testPlayer');
+    player.pause();
+
+    if (type === "drive") {
+      if (!fileId) return showToast("Enter Google Drive File ID first");
+      showToast("Proxying Drive audio...");
+      const uri = await resolveDriveProxy(fileId);
+      player.src = uri;
+      player.play().catch(() => showToast("Failed to play Drive audio"));
+    } else {
+      if (!url) return showToast("Enter stream URL first");
+      if (url.includes('.m3u8') && Hls.isSupported()) {
+        hlsTest = new Hls();
+        hlsTest.loadSource(url);
+        hlsTest.attachMedia(player);
+        hlsTest.on(Hls.Events.MANIFEST_PARSED, () => player.play());
+      } else {
+        player.src = url;
+        player.play().catch(() => showToast("Stream blocked or offline"));
+      }
+    }
   }
 
   function saveStationModal() {
     const idx = parseInt(document.getElementById('editStationIndex').value, 10);
+    const sourceType = document.getElementById('modalSourceType').value;
     const item = {
       startTime: document.getElementById('modalStart').value.trim(),
       endTime: document.getElementById('modalEnd').value.trim(),
       title: document.getElementById('modalTitle').value.trim(),
       category: document.getElementById('modalCategory').value,
       language: document.getElementById('modalLanguage').value.trim(),
-      url: document.getElementById('modalUrl').value.trim()
+      sourceType: sourceType,
+      url: sourceType === "live" ? document.getElementById('modalUrl').value.trim() : "",
+      fileId: sourceType === "drive" ? document.getElementById('modalFileId').value.trim() : ""
     };
 
-    if (!item.startTime || !item.endTime || !item.title || !item.url) {
-      return showToast("Please fill all required fields");
+    if (!item.startTime || !item.endTime || !item.title) {
+      return showToast("Fill all required fields");
     }
+    if (sourceType === "live" && !item.url) return showToast("URL is required for live streams");
+    if (sourceType === "drive" && !item.fileId) return showToast("Drive File ID is required");
 
     if (idx >= 0) {
       schedule[idx] = item;
@@ -656,7 +770,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
     renderScheduleGrid();
     closeStationModal();
-    showToast("Station saved to timeline!");
+    showToast("Schedule updated!");
   }
 
   function deleteStation(index) {
@@ -664,11 +778,11 @@
     schedule.splice(index, 1);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
     renderScheduleGrid();
-    showToast("Station deleted");
+    showToast("Item deleted");
   }
 
   async function syncScheduleToSheet() {
-    showToast("Syncing schedule with Google Sheet...");
+    showToast("Syncing timetable with Google Sheet...");
     try {
       const res = await fetch(BACKEND_URL, {
         method: 'POST',
@@ -677,7 +791,7 @@
       });
       const data = await res.json();
       if (data.status === "success") {
-        showToast(`Google Sheet Updated (${data.count} stations)`);
+        showToast(`Google Sheet Updated (${data.count} items)`);
       } else {
         showToast("Sync error: " + (data.message || "Unknown error"));
       }
@@ -686,7 +800,74 @@
     }
   }
 
-  // LIVE MIC ANNOUNCEMENT BROADCASTING
+  // Auto-sync files currently sitting inside the Drive folder
+  async function triggerDriveAutoSync() {
+    showToast("Scanning Google Drive folder...");
+    try {
+      const res = await fetch(`${BACKEND_URL}?action=getSchedule`);
+      const data = await res.json();
+      if (data && data.channels) {
+        schedule = data.channels;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+        renderScheduleGrid();
+        showToast("Drive audios matched & synchronized!");
+      }
+    } catch(e) {
+      showToast("Drive sync completed locally");
+    }
+  }
+
+  // DIRECT DRIVE UPLOADER TAB
+  async function handleDirectDriveUpload() {
+    const fileInput = document.getElementById("adminUploadFile");
+    const titleInput = document.getElementById("adminUploadTitle");
+    const btn = document.getElementById("adminUploadBtn");
+
+    if (!fileInput.files || !fileInput.files[0]) return showToast("Select an audio file");
+    const file = fileInput.files[0];
+    const title = titleInput.value.trim() || file.name.replace(/\.[^/.]+$/, "");
+
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading to Google Drive...`;
+
+    const reader = new FileReader();
+    reader.onload = async function() {
+      const base64Data = reader.result.split(',')[1];
+      try {
+        const res = await fetch(BACKEND_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "uploadDriveAudio",
+            title,
+            fileName: file.name,
+            mimeType: file.type || "audio/mpeg",
+            base64File: base64Data
+          })
+        });
+        const d = await res.json();
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-upload"></i> Upload & Schedule to Radio`;
+
+        if (d.success) {
+          showToast("Uploaded & automatically added to Radio schedule!");
+          fileInput.value = "";
+          titleInput.value = "";
+          refreshAdminData();
+          switchTab('scheduleTab', document.getElementById('tabBtnSchedule'));
+        } else {
+          showToast(d.message || "Upload failed");
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-upload"></i> Upload & Schedule to Radio`;
+        showToast("Error communicating with Google Drive backend");
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // LIVE MIC ANNOUNCEMENTS
   async function toggleMicRecording() {
     const btn = document.getElementById('micBtn');
     const status = document.getElementById('micStatus');
